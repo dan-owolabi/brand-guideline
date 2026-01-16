@@ -451,28 +451,30 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                                 >
                                     {groupName}
                                 </h3>
-                                <ul className="space-y-1.5">
+                                <ul className="space-y-0.5">
                                     {groupSections.map((section) => {
                                         const isActive = activeSection?.id === section.id
                                         return (
                                             <li key={section.id}>
-                                                <div className="flex items-center justify-between group/item">
+                                                <div className="flex items-center justify-between group/item relative">
                                                     <NavLink
                                                         to={isAdmin
                                                             ? `/admin/brand/${params.brandId}/${section.slug}`
                                                             : `/brand/${brandData?.slug || params.slug}/${section.slug}`
                                                         }
-                                                        className={`flex-1 py-0.5 transition-colors text-[14px] ${isActive ? 'font-medium text-[#111]' : 'font-normal text-[#666]'}`}
+                                                        className={`flex-1 py-1 px-2 -mx-2 rounded-md transition-all text-[13px] tracking-tight ${isActive ? 'font-medium text-gray-900 bg-gray-100' : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
                                                     >
                                                         {decodeEntities(section.title)}
                                                     </NavLink>
                                                     {isAdmin && sections.length > 1 && (
-                                                        <button
-                                                            onClick={() => setSectionToDelete(section.id)}
-                                                            className="opacity-0 group-hover/item:opacity-100 p-1.5 text-gray-400 hover:text-red-500 transition-opacity"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
+                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity bg-white/50 backdrop-blur-sm rounded">
+                                                            <button
+                                                                onClick={() => setSectionToDelete(section.id)}
+                                                                className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                                 {isActive && subheadings.length > 0 && (
@@ -532,7 +534,7 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                             <>
                                 {/* Section Title */}
                                 <h1
-                                    className={`text-2xl md:text-4xl font-bold text-gray-900 mb-6 md:mb-8 ${isAdmin ? 'cursor-text hover:bg-gray-50 rounded px-1 -mx-1' : ''}`}
+                                    className={`text-3xl md:text-4xl font-bold text-gray-900 mb-6 md:mb-10 tracking-tight leading-tight ${isAdmin ? 'cursor-text hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors' : ''}`}
                                     contentEditable={isAdmin}
                                     suppressContentEditableWarning
                                     onBlur={(e) => {

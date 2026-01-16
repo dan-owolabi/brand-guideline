@@ -111,8 +111,8 @@ export default function Header({
 
     return (
         <header
-            className={`fixed top-2 md:top-4 left-2 right-2 md:left-4 md:right-4 ${isAdmin ? 'px-4 md:px-6' : 'px-4 md:px-10'} h-16 md:h-24 z-50 flex items-center justify-between shadow-sm transition-all rounded-full group/header`}
-            style={{ backgroundColor: bgColor }}
+            className={`fixed top-2 md:top-4 left-2 right-2 md:left-4 md:right-4 ${isAdmin ? 'px-4 md:px-6' : 'px-4 md:px-10'} h-16 md:h-20 z-50 flex items-center justify-between border border-gray-200/60 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] backdrop-blur-xl transition-all rounded-full group/header`}
+            style={{ backgroundColor: isDarkBg ? bgColor : `${bgColor}CC` }}
         >
             {isAdmin && (
                 <>
