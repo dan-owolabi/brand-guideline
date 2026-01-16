@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { ImagePlus, X, Maximize, Minimize, Loader2 } from 'lucide-react'
 import { uploadFile } from '../../lib/supabase'
+import { ImagePresets, getResponsiveSrcSet } from '../../lib/imageOptimizer'
 
 export default function ImageBlock({
     content,
@@ -98,14 +99,24 @@ export default function ImageBlock({
     const isFullWidth = content?.fullWidth
     const displayWidth = isFullWidth ? '100%' : (tempWidth ? `${tempWidth}px` : 'auto')
 
+    // Optimized image URL for public view
+    const optimizedSrc = isFullWidth
+        ? ImagePresets.hero(content?.src)
+        : ImagePresets.content(content?.src)
+    const srcSet = getResponsiveSrcSet(content?.src)
+
     if (!isAdmin) {
         if (!hasImage) return null
         return (
             <figure className={`my-6 ${isFullWidth ? '-mx-8 md:-mx-16 max-w-none' : 'max-w-full'}`}>
                 <img
-                    src={content.src}
+                    src={optimizedSrc}
+                    srcSet={srcSet || undefined}
+                    sizes={isFullWidth ? '100vw' : '(max-width: 768px) 100vw, 800px'}
                     alt={content.alt || ''}
                     className="w-full rounded-xl"
+                    loading="lazy"
+                    decoding="async"
                 />
                 {content.caption && (
                     <figcaption className="prose-small text-center mt-2">

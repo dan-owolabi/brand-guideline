@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { ImagePlus, X, Plus, Grid2x2, Grid3x3, Square, RectangleHorizontal, RectangleVertical, Maximize2 } from 'lucide-react'
 import { uploadFile } from '../../lib/supabase'
+import { ImagePresets } from '../../lib/imageOptimizer'
 
 const GRID_LAYOUTS = {
     1: 'grid-cols-1',
@@ -125,9 +126,11 @@ export default function ImageGridBlock({
                 {images.map((img, index) => (
                     <figure key={index} className="relative">
                         <img
-                            src={img.src}
+                            src={ImagePresets.thumbnail(img.src)}
                             alt={img.alt || ''}
                             className={`w-full h-auto rounded-lg ${!isAutoAspect ? `${aspectClass} object-contain bg-gray-50` : ''}`}
+                            loading="lazy"
+                            decoding="async"
                         />
                         {img.description && (
                             <p className="text-sm text-gray-500 mt-2">
