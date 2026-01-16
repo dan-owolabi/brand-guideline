@@ -122,13 +122,13 @@ export default function ImageGridBlock({
     if (!isAdmin) {
         if (!images.length) return null
         return (
-            <div className={`my - 6 grid ${gridCols} gap - 6`}>
+            <div className={`my-6 grid ${gridCols} gap-6`}>
                 {images.map((img, index) => (
                     <figure key={index} className="relative">
                         <img
                             src={ImagePresets.thumbnail(img.src)}
                             alt={img.alt || ''}
-                            className={`w - full h - auto rounded - lg ${!isAutoAspect ? `${aspectClass} object-contain bg-gray-50` : ''} `}
+                            className={`w-full rounded-lg ${!isAutoAspect ? `${aspectClass} object-cover` : 'h-auto'}`}
                             loading="lazy"
                             decoding="async"
                         />
@@ -169,40 +169,40 @@ export default function ImageGridBlock({
                     <span className="text-xs text-gray-500">Aspect:</span>
                     <button
                         onClick={() => setAspectRatio('auto')}
-                        className={`flex items - center gap - 1.5 px - 2 py - 1 rounded - md text - xs font - medium transition - colors ${isAutoAspect
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'text-gray-400 hover:text-gray-600'
-                            } `}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${isAutoAspect
+                            ? 'bg-gray-100 text-gray-700'
+                            : 'text-gray-400 hover:text-gray-600'
+                            }`}
                     >
                         <Maximize2 size={14} />
                         Auto
                     </button>
                     <button
                         onClick={() => setAspectRatio('square')}
-                        className={`flex items - center gap - 1.5 px - 2 py - 1 rounded - md text - xs font - medium transition - colors ${aspectRatio === 'square'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'text-gray-400 hover:text-gray-600'
-                            } `}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${aspectRatio === 'square'
+                            ? 'bg-gray-100 text-gray-700'
+                            : 'text-gray-400 hover:text-gray-600'
+                            }`}
                     >
                         <Square size={14} />
                         Square
                     </button>
                     <button
                         onClick={() => setAspectRatio('landscape')}
-                        className={`flex items - center gap - 1.5 px - 2 py - 1 rounded - md text - xs font - medium transition - colors ${aspectRatio === 'landscape'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'text-gray-400 hover:text-gray-600'
-                            } `}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${aspectRatio === 'landscape'
+                            ? 'bg-gray-100 text-gray-700'
+                            : 'text-gray-400 hover:text-gray-600'
+                            }`}
                     >
                         <RectangleHorizontal size={14} />
                         Landscape
                     </button>
                     <button
                         onClick={() => setAspectRatio('portrait')}
-                        className={`flex items - center gap - 1.5 px - 2 py - 1 rounded - md text - xs font - medium transition - colors ${aspectRatio === 'portrait'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'text-gray-400 hover:text-gray-600'
-                            } `}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${aspectRatio === 'portrait'
+                            ? 'bg-gray-100 text-gray-700'
+                            : 'text-gray-400 hover:text-gray-600'
+                            }`}
                     >
                         <RectangleVertical size={14} />
                         Portrait
@@ -211,13 +211,13 @@ export default function ImageGridBlock({
             )}
 
             {images.length > 0 ? (
-                <div className={`grid ${gridCols} gap - 4`}>
+                <div className={`grid ${gridCols} gap-4`}>
                     {images.map((img, index) => (
                         <div key={index} className="relative group/img">
                             <img
                                 src={img.src}
                                 alt={img.alt || ''}
-                                className={`w - full h - auto rounded - lg ${!isAutoAspect ? `${aspectClass} object-contain bg-gray-50` : ''} `}
+                                className={`w-full h-auto rounded-lg ${!isAutoAspect ? `${aspectClass} object-contain bg-gray-50` : ''}`}
                             />
                             {/* Action buttons */}
                             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/img:opacity-100 transition-opacity">
@@ -257,7 +257,7 @@ export default function ImageGridBlock({
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={uploading}
-                            className={`rounded - lg border - 2 border - dashed border - gray - 200 flex flex - col items - center justify - center gap - 1 text - gray - 300 hover: border - gray - 300 hover: text - gray - 400 transition - colors min - h - 32 ${aspectClass || 'py-8'} `}
+                            className={`rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-300 hover:border-gray-300 hover:text-gray-400 transition-colors min-h-32 ${aspectClass || 'py-8'}`}
                         >
                             <Plus size={24} />
                             <span className="text-xs">Add more</span>

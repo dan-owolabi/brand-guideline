@@ -799,13 +799,12 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                             className="absolute inset-0"
                             style={{ backgroundColor: brand?.primary_color || '#111827' }}
                         >
-                            {brand?.banner_url && (
-                                <img
-                                    src={brand.banner_url}
-                                    alt="Banner"
-                                    className="w-full h-full object-cover"
-                                />
-                            )}
+                            {/* Temporary Banner Override */}
+                            <img
+                                src="/assets-banner.png"
+                                alt="Banner"
+                                className="w-full h-full object-cover"
+                            />
                         </div>
 
                         {/* Change Cover Button - Admin Only */}
