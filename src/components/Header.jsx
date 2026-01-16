@@ -172,7 +172,7 @@ export default function Header({
 
                 {/* Logo - placed directly on header */}
                 <div
-                    className={`h-6 md:h-8 flex items-center relative group/logo ${isAdmin ? 'cursor-pointer' : ''}`}
+                    className={`h-6 md:h-6 flex items-center relative group/logo ${isAdmin ? 'cursor-pointer' : ''}`}
                     onClick={() => isAdmin && fileInputRef.current?.click()}
                     title={isAdmin ? "Click to upload logo (SVG or PNG)" : ""}
                 >
