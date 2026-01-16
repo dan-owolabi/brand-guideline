@@ -25,7 +25,7 @@ export default function BlockWrapper({
     }
 
     if (!isAdmin) {
-        return <div className="block-content">{children}</div>
+        return <div id={blockId} className="block-content">{children}</div>
     }
 
     return (
