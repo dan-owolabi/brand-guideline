@@ -1509,6 +1509,29 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
                     </div>
                 )
             }
+
+            {confirmModal.open && (
+                <ConfirmModal
+                    {...confirmModal}
+                    onClose={() => setConfirmModal({ ...confirmModal, open: false })}
+                />
+            )}
+
+            {inputModal.open && (
+                <InputModal
+                    {...inputModal}
+                    onClose={() => setInputModal({ ...inputModal, open: false })}
+                />
+            )}
+
+            <PublishModal
+                isOpen={publishModalOpen}
+                onClose={() => setPublishModalOpen(false)}
+                onConfirm={handleConfirmPublish}
+                initialSlug={brand?.slug}
+                brandName={brand?.name}
+                isPublishing={publishing}
+            />
         </div >
     )
 }
@@ -1693,21 +1716,7 @@ function AssetCard({ asset, isAdmin, onDelete, onPreview, sections, onMove, onUp
                     onClick={() => setShowMenu(false)}
                 />
             )}
-            {inputModal.open && (
-                <InputModal
-                    {...inputModal}
-                    onClose={() => setInputModal({ ...inputModal, open: false })}
-                />
-            )}
 
-            <PublishModal
-                isOpen={publishModalOpen}
-                onClose={() => setPublishModalOpen(false)}
-                onConfirm={handleConfirmPublish}
-                initialSlug={brandMetadata?.slug || brand?.slug}
-                brandName={brand?.name}
-                isPublishing={publishing}
-            />
         </div>
     )
 }
