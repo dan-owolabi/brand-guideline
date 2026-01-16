@@ -767,7 +767,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
                             contentEditable={isAdmin}
                             suppressContentEditableWarning
                             onBlur={(e) => setPageTitle(e.currentTarget.textContent)}
-                            className={`text-3xl font-bold text-gray-900 tracking-tight outline-none ${isAdmin ? 'hover:bg-gray-100 rounded px-1 -mx-1' : ''}`}
+                            className={`text-3xl font-semibold text-gray-900 tracking-tight outline-none ${isAdmin ? 'hover:bg-gray-100 rounded px-1 -mx-1' : ''}`}
                         >
                             {pageTitle}
                         </h1>
