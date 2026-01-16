@@ -59,7 +59,18 @@ function formatFileSize(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
+async function downloadFile(url, filename) {
+    try {
+        const response = await fetch(url)
+        const blob = await response.blob()
+        saveAs(blob, filename)
+    } catch (error) {
+        console.error('Download failed', error)
+        window.open(url, '_blank')
+    }
+}
+
+export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath }) {
     const { brandId, slug } = useParams()
     // Identifier is either UUID (brandId), Slug from params, or passed prop
     const identifier = brandId || slug || brandSlug
@@ -756,6 +767,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
                 onPublish={handlePublishClick}
                 isPublishing={publishing}
                 publishSuccess={publishSuccess}
+                basePath={basePath}
             />
 
             {/* Hero Banner - Hidden when browsing a folder */}
@@ -833,7 +845,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
             )}
 
             {/* Main Content */}
-            <main className="max-w-5xl mx-auto px-8 pb-24 pt-8 space-y-6">
+            <main className={`max-w-5xl mx-auto px-8 pb-24 space-y-6 ${currentFolderId ? 'pt-36 md:pt-44' : 'pt-8'}`}>
 
                 {/* View Mode Toggle - Moved closer to sections */}
                 {!currentFolderId && (
@@ -873,8 +885,18 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
                 {currentFolderId ? (
                     <div className="space-y-6">
                         {/* Breadcrumbs Header */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 bg-gray-50/95 backdrop-blur py-4 -my-4 z-40">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-24 md:top-32 bg-gray-50/95 backdrop-blur py-4 -my-4 z-40 transition-all">
                             <div className="flex items-center flex-1 gap-4 min-w-0">
+                                <button
+                                    onClick={() => {
+                                        const currentAsset = assets.find(a => a.id === currentFolderId)
+                                        setCurrentFolderId(currentAsset?.parent_id || null)
+                                    }}
+                                    className="p-2 -ml-2 text-gray-400 hover:text-gray-900 hover:bg-white rounded-lg transition-all"
+                                    title="Back"
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
                                 <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm shrink-0 overflow-x-auto max-w-[50%] md:max-w-none">
                                     <button onClick={() => setCurrentFolderId(null)} className="hover:text-gray-900 flex items-center gap-1 transition-colors">
                                         <Home size={14} /> <span className="hidden md:inline">Home</span>
@@ -1495,14 +1517,13 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
                                     })()}
                                     <h3 className="text-lg font-semibold text-gray-900 mb-1">{previewAsset.name}</h3>
                                     <p className="text-gray-500 mb-6">{formatFileSize(previewAsset.file_size)}</p>
-                                    <a
-                                        href={previewAsset.file_url}
-                                        download
+                                    <button
+                                        onClick={() => downloadFile(previewAsset.file_url, previewAsset.name)}
                                         className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors"
                                     >
                                         <Download size={18} />
                                         Download
-                                    </a>
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -1658,14 +1679,15 @@ function AssetCard({ asset, isAdmin, onDelete, onPreview, sections, onMove, onUp
 
             {/* Actions */}
             <div className="absolute top-2 right-2 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <a
-                    href={asset.file_url}
-                    download
-                    onClick={(e) => e.stopPropagation()}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        downloadFile(asset.file_url, asset.name)
+                    }}
                     className="p-1.5 bg-white/90 backdrop-blur rounded-lg shadow-sm hover:bg-white text-gray-600"
                 >
                     <Download size={14} />
-                </a>
+                </button>
                 {isAdmin && (
                     <div className="relative">
                         <button

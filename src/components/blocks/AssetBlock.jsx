@@ -5,6 +5,18 @@ import {
     Paperclip, ArrowUpDown, Plus, X, Upload, Loader2, Trash2, GripVertical
 } from 'lucide-react'
 import { uploadFile } from '../../lib/supabase'
+import { saveAs } from 'file-saver'
+
+async function downloadFile(url, filename) {
+    try {
+        const response = await fetch(url)
+        const blob = await response.blob()
+        saveAs(blob, filename)
+    } catch (error) {
+        console.error('Download failed', error)
+        window.open(url, '_blank')
+    }
+}
 
 // File type detection and icons
 const FILE_CATEGORIES = {
@@ -78,15 +90,14 @@ function AssetCard({ asset, brand, viewMode, isAdmin, onRemove, onUpdate, dragHa
                             <Trash2 size={16} />
                         </button>
                     )}
-                    <a
-                        href={asset.downloadUrl}
-                        download
+                    <button
+                        onClick={() => downloadFile(asset.downloadUrl, asset.name)}
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors hover:opacity-90"
                         style={{ backgroundColor: brand?.primaryColor || '#0066FF' }}
                     >
                         <Download size={16} />
                         Download
-                    </a>
+                    </button>
                 </div>
             </div>
         )
@@ -138,15 +149,14 @@ function AssetCard({ asset, brand, viewMode, isAdmin, onRemove, onUpdate, dragHa
                         </span>
                         <span className="text-xs text-gray-400">{formatFileSize(asset.fileSize)}</span>
                     </div>
-                    <a
-                        href={asset.downloadUrl}
-                        download
+                    <button
+                        onClick={() => downloadFile(asset.downloadUrl, asset.name)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-colors hover:opacity-90"
                         style={{ backgroundColor: brand?.primaryColor || '#0066FF' }}
                     >
                         <Download size={14} />
                         Download
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>

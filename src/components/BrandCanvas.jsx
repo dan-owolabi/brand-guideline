@@ -34,7 +34,7 @@ import { getCanonicalUrl } from '../lib/brandResolver'
  * BrandCanvas - The unified renderer/editor for brand guidelines.
  * Same component serves both public (read-only) and admin (editable) views.
  */
-export default function BrandCanvas({ isAdmin = false, brandData }) {
+export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
     const params = useParams()
     const navigate = useNavigate()
     // For admin: params.slug is the section slug (route: /admin/brand/:brandId/:slug)
@@ -428,7 +428,8 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
             navigate(`/admin/brand/${brandId}/${section.slug}`)
         } else {
             const brandSlug = brandData?.slug || params.slug
-            navigate(`/brand/${brandSlug}/${section.slug}`)
+            const path = basePath !== undefined ? basePath : `/brand/${brandSlug}`
+            navigate(`${path}/${section.slug}`)
         }
     }
 
@@ -444,6 +445,7 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                 sidebarOpen={sidebarOpen}
                 onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
                 onUpdateBrand={updateBrandMetadata}
+                basePath={basePath}
             />
 
             <div className="flex pt-20 md:pt-24 min-h-screen">
@@ -499,6 +501,7 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                                                         setSectionToDelete={setSectionToDelete}
                                                         subheadings={activeSection?.id === section.id ? subheadings : []}
                                                         sectionsCount={data?.sections?.length || 0}
+                                                        basePath={basePath}
                                                     />
                                                 ))}
                                             </ul>
@@ -934,7 +937,7 @@ function DndBlockContent({
     )
 }
 
-function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandSlug, setSectionToDelete, subheadings, sectionsCount }) {
+function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandSlug, setSectionToDelete, subheadings, sectionsCount, basePath }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: section.id,
         disabled: !isAdmin
@@ -966,7 +969,7 @@ function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandS
                 <NavLink
                     to={isAdmin
                         ? `/admin/brand/${brandId}/${section.slug}`
-                        : `/brand/${brandSlug}/${section.slug}`
+                        : `${basePath !== undefined ? basePath : `/brand/${brandSlug}`}/${section.slug}`
                     }
                     className={`flex-1 py-1 px-2 rounded-md transition-all text-[13px] tracking-tight ${isActive ? 'font-medium text-gray-900 bg-gray-100' : 'font-normal text-gray-500'}`}
                 >

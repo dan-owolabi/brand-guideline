@@ -30,7 +30,8 @@ export default function Header({
     publishSuccess,
     sidebarOpen,
     onToggleSidebar,
-    onUpdateBrand
+    onUpdateBrand,
+    basePath
 }) {
     const navigate = useNavigate()
     const location = useLocation()
@@ -90,14 +91,16 @@ export default function Header({
 
     // Navigation Links Logic
     // Admin: /admin/brand/:id/introduction
-    // Public: /introduction (root-relative)
+    // Public: {basePath}/introduction
+    const publicBasePath = typeof basePath !== 'undefined' ? basePath : `/brand/${brand?.slug}`
+
     const guidelinesLink = isAdmin
         ? `/admin/brand/${brand?.id}/introduction`
-        : '/introduction'
+        : `${publicBasePath}/introduction`
 
     const assetsLink = isAdmin
         ? `/admin/brand/${brand?.id}/assets`
-        : '/assets'
+        : `${publicBasePath}/assets`
 
     // Public URL for View Live button
     const publicIdentifier = brand?.slug || brand?.id

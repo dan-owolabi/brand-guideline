@@ -118,9 +118,9 @@ export default function PublicBrandApp({ brandIdentifier, isCustomDomain = false
 
     return (
         <Routes>
-            <Route path="/assets" element={<AssetsPage isAdmin={false} brandSlug={brandData.slug} />} />
-            <Route path="/:pageSlug" element={<BrandCanvas isAdmin={false} brandData={brandData} />} />
-            <Route path="/" element={<BrandCanvas isAdmin={false} brandData={brandData} />} />
+            <Route path="/assets" element={<AssetsPage isAdmin={false} brandSlug={brandData.slug} basePath="" />} />
+            <Route path="/:pageSlug" element={<BrandCanvas isAdmin={false} brandData={brandData} basePath="" />} />
+            <Route path="/" element={<BrandCanvas isAdmin={false} brandData={brandData} basePath="" />} />
         </Routes>
     )
 }
