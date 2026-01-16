@@ -95,6 +95,7 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
         return () => document.removeEventListener('keydown', handleKeyDown)
     }, [isAdmin, undo, redo])
 
+    const [publishModalOpen, setPublishModalOpen] = useState(false)
     const [publishSuccess, setPublishSuccess] = useState(false)
     const [isPublishing, setIsPublishing] = useState(false)
     const [hoveredBlockIndex, setHoveredBlockIndex] = useState(null)
@@ -211,8 +212,6 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
     const activeSectionIndex = allSectionsList.findIndex(s => s.id === activeSection?.id)
     const prevSection = activeSectionIndex > 0 ? allSectionsList[activeSectionIndex - 1] : null
     const nextSection = activeSectionIndex < allSectionsList.length - 1 ? allSectionsList[activeSectionIndex + 1] : null
-
-    const [publishModalOpen, setPublishModalOpen] = useState(false)
 
     const handlePublishClick = () => {
         setPublishModalOpen(true)

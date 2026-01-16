@@ -25,8 +25,8 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
             return
         }
 
-        if (cleanSlug.length < 3) {
-            setError('Link must be at least 3 characters')
+        if (cleanSlug.length < 1) {
+            setError('Link must be at least 1 characters')
             return
         }
 

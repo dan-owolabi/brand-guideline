@@ -345,7 +345,7 @@ export default function BrandsDashboard() {
                             <div
                                 key={brand.id}
                                 className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                                onClick={() => navigate(`/admin/brand/${brand.id}/introduction`)}
+                                onClick={() => navigate(`/admin/brand/${brand.slug || brand.id}/introduction`)}
                             >
                                 {/* Card Cover */}
                                 <div
