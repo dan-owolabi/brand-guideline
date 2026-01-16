@@ -74,7 +74,7 @@ export default function BrandsDashboard() {
         try {
             const { data, error } = await supabase
                 .from('brands')
-                .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, draft, published, slug')
+                .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, published, slug')
                 .order('created_at', { ascending: false })
 
             if (error) throw error
@@ -400,9 +400,7 @@ export default function BrandsDashboard() {
                                             Last updated {new Date(brand.created_at).toLocaleDateString()}
                                         </p>
 
-                                        <div className="flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md">
-                                            {(brand.draft?.sections?.length || 0)} sections
-                                        </div>
+                                        {/* {(brand.draft?.sections?.length || 0)} sections */}
                                     </div>
 
                                     {/* Hover "Enter" Action */}
