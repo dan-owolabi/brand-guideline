@@ -1,0 +1,286 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist Sans", "Geist", "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  --radius-lg: 0.5rem;
+  --radius-md: calc(0.5rem - 2px);
+  --radius-sm: calc(0.5rem - 4px);
+
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222.2 84% 4.9%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222.2 84% 4.9%);
+
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222.2 84% 4.9%);
+
+  --color-primary: hsl(222.2 47.4% 11.2%);
+  --color-primary-foreground: hsl(210 40% 98%);
+
+  --color-secondary: hsl(210 40% 96.1%);
+  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
+
+  --color-muted: hsl(210 40% 96.1%);
+  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
+
+  --color-accent: hsl(210 40% 96.1%);
+  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
+
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+
+  --color-border: hsl(214.3 31.8% 91.4%);
+  --color-input: hsl(214.3 31.8% 91.4%);
+  --color-ring: hsl(222.2 84% 4.9%);
+}
+
+/* Typography & Block System */
+@layer base {
+  :root {
+    --brand-primary: #000000;
+    --brand-primary-light: #333333;
+
+    /* Base Typography Specs */
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+  }
+
+  /* Body Text (Paragraph) */
+  .prose-paragraph {
+    font-size: 16px;
+    line-height: 26px;
+    font-weight: 400;
+    letter-spacing: 0px;
+    max-width: 680px;
+    margin-bottom: 16px;
+    color: #374151;
+    /* gray-700 */
+  }
+
+  /* Small Text */
+  .prose-small {
+    font-size: 14px;
+    line-height: 22px;
+    font-weight: 400;
+    color: #6B7280;
+    /* gray-500 */
+    margin-top: 8px;
+  }
+
+  /* Headings */
+  .prose-h1 {
+    font-size: 40px;
+    line-height: 48px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+    color: #111827;
+    /* gray-900 */
+  }
+
+  .prose-h2 {
+    font-size: 28px;
+    line-height: 36px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    margin-top: 48px;
+    margin-bottom: 16px;
+    color: #111827;
+  }
+
+  .prose-h3 {
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    color: #111827;
+  }
+
+  .prose-h4 {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    color: #111827;
+  }
+
+  /* Tight spacing - removes top margin when blocks should be grouped */
+  .block-tight {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Quote */
+  .prose-quote {
+    font-size: 18px;
+    line-height: 28px;
+    font-weight: 500;
+    padding: 24px;
+    border-radius: 12px;
+    border-left: 4px solid var(--brand-primary);
+    background-color: #F9FAFB;
+    /* gray-50 */
+    margin: 24px 0;
+    color: #374151;
+  }
+
+  .prose-quote-attribution {
+    font-size: 14px;
+    opacity: 0.7;
+    margin-top: 12px;
+    display: block;
+  }
+
+  /* Lists */
+  .prose-list {
+    font-size: 16px;
+    line-height: 26px;
+    margin-bottom: 16px;
+    padding-left: 20px;
+  }
+
+  .prose-list-item {
+    margin-bottom: 8px;
+  }
+
+  /* Lists created by contentEditable execCommand */
+  [contenteditable="true"] ul,
+  .prose-paragraph ul,
+  .prose-list-item ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+  }
+
+  [contenteditable="true"] ol,
+  .prose-paragraph ol,
+  .prose-list-item ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+  }
+
+  [contenteditable="true"] ul li,
+  [contenteditable="true"] ol li,
+  .prose-paragraph ul li,
+  .prose-paragraph ol li {
+    margin-bottom: 0.25rem;
+  }
+
+  /* Nested lists */
+  [contenteditable="true"] ul ul,
+  .prose-paragraph ul ul {
+    list-style-type: circle;
+  }
+
+  [contenteditable="true"] ul ul ul,
+  .prose-paragraph ul ul ul {
+    list-style-type: square;
+  }
+
+  .numbered-list-container {
+    counter-reset: block-counter;
+  }
+
+  .prose-numbered-item {
+    counter-increment: block-counter;
+  }
+
+  .prose-numbered-item-label::before {
+    content: counter(block-counter) ". ";
+  }
+
+  /* Divider */
+  .prose-divider {
+    height: 1px;
+    width: 100%;
+    background-color: #E5E7EB;
+    /* gray-200 */
+    margin: 32px 0;
+  }
+
+  /* Mobile Adjustments */
+  @media (max-width: 768px) {
+    .prose-paragraph {
+      font-size: 15px;
+      line-height: 24px;
+    }
+
+    .prose-h1 {
+      font-size: 32px;
+      line-height: 40px;
+    }
+
+    .prose-h2 {
+      font-size: 24px;
+      line-height: 32px;
+    }
+
+    .prose-h3 {
+      font-size: 18px;
+      line-height: 26px;
+    }
+
+    .prose-quote {
+      font-size: 16px;
+      padding: 16px;
+    }
+
+    /* Reduce margins by 25% */
+    .prose-h1,
+    .prose-h2,
+    .prose-h3,
+    .prose-h4,
+    .prose-quote,
+    .prose-divider {
+      margin-top: calc(0.75 * initial);
+      margin-bottom: calc(0.75 * initial);
+    }
+  }
+}
+
+/* Edit Mode Visuals */
+.block-hover-outline:hover {
+  outline: 1px dashed #D1D5DB;
+  /* gray-300 */
+}
+
+.block-active-bg {
+  background-color: rgba(243, 244, 246, 0.5);
+  /* gray-100 50% */
+}
+
+/* Section system */
+.sidebar-item-active {
+  @apply text-gray-900 font-medium;
+}
+
+.sidebar-item-nested {
+  @apply pl-4 text-xs;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-200 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-300;
+}
