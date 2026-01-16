@@ -209,7 +209,7 @@ export default function AdminLayout() {
                         </Avatar>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-medium truncate">Danny Admin</p>
-                            <p className="text-xs text-muted-foreground truncate">admin@nobora.com</p>
+                            <p className="text-xs text-muted-foreground truncate">admin@guidrr.com</p>
                         </div>
                     </div>
                 </div>
@@ -220,7 +220,7 @@ export default function AdminLayout() {
                 <SheetContent side="left" className="w-64 p-0">
                     {/* Same structure as desktop sidebar roughly */}
                     <div className="h-16 flex items-center px-4 border-b">
-                        <span className="font-bold text-lg">Nobora Admin</span>
+                        <span className="font-bold text-lg">Guidrr Admin</span>
                     </div>
                     <ScrollArea className="flex-1 px-3 py-4">
                         {/* Simplified nav for mobile */}

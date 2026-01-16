@@ -271,7 +271,7 @@ export default function BrandsDashboard() {
                         <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
                             <Compass size={20} />
                         </div>
-                        Nobora
+                        Guidrr
                     </div>
 
                     <div className="space-y-1">
