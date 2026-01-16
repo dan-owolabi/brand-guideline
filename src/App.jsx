@@ -19,7 +19,7 @@ import { resolveBrandIdentity } from './lib/brandResolver'
  */
 function BrandCanvasWrapper({ isAdmin }) {
   const params = useParams()
-  const identity = resolveBrandIdentity(params)
+  const identity = resolveBrandIdentity(params, isAdmin)
 
   const [brandData, setBrandData] = useState(null)
   const [loading, setLoading] = useState(true)

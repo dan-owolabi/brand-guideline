@@ -13,23 +13,36 @@ export function resolveBrandIdentity(params) {
     //     return { type: 'hostname', value: hostname }
     // }
 
-    // 2. Current Path Logic
-    // We prefer SLUG, then fall back to ID
-    if (params.slug) {
-        return { type: 'slug', value: params.slug }
+    export function resolveBrandIdentity(params, isAdmin = false) {
+        // 1. Admin Context: Always prefer brandId
+        // Route: /admin/brand/:brandId/:slug (here :slug is the page, not the brand)
+        if (isAdmin && params.brandId) {
+            return { type: 'id', value: params.brandId }
+        }
+
+        // 2. Public Context: :slug is the brand identifier
+        // Route: /brand/:slug/:pageSlug
+        if (params.slug) {
+            // Check if the "slug" is actually a UUID (legacy link or ID-based access)
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.slug)
+            if (isUuid) {
+                return { type: 'id', value: params.slug }
+            }
+            return { type: 'slug', value: params.slug }
+        }
+
+        // Fallback
+        if (params.brandId) {
+            return { type: 'id', value: params.brandId }
+        }
+
+        return null
     }
 
-    if (params.brandId) {
-        return { type: 'id', value: params.brandId }
+    export function getCanonicalUrl(brandSlug) {
+        // This is the source of truth for the canonical URL
+        const baseUrl = window.location.origin
+        if (!brandSlug) return baseUrl
+
+        return `${baseUrl}/brand/${brandSlug}`
     }
-
-    return null
-}
-
-export function getCanonicalUrl(brandSlug) {
-    // This is the source of truth for the canonical URL
-    const baseUrl = window.location.origin
-    if (!brandSlug) return baseUrl
-
-    return `${baseUrl}/brand/${brandSlug}`
-}
