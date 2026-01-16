@@ -434,76 +434,85 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:w-0 md:translate-x-0 md:border-none md:opacity-0 pointer-events-none md:pointer-events-none'}
                 `}>
                     <nav className="flex-1 px-6 py-8 min-w-[16rem] overflow-y-auto">
-                        {Object.entries(groupedSections).map(([groupName, groupSections], groupIndex) => (
-                            <div key={groupName} className={groupIndex === 0 ? '' : 'pt-4'}>
-                                <h3
-                                    className={`text-[14px] font-semibold text-[#111] mb-2 ${isAdmin ? 'cursor-text hover:text-gray-600' : ''}`}
-                                    contentEditable={isAdmin}
-                                    suppressContentEditableWarning
-                                    onBlur={(e) => {
-                                        const newGroupName = e.currentTarget.textContent.trim()
-                                        if (isAdmin && newGroupName && newGroupName !== groupName) {
-                                            groupSections.forEach(section => {
-                                                updateSection(section.id, { group: newGroupName })
-                                            })
-                                        }
-                                    }}
-                                >
-                                    {groupName}
-                                </h3>
-                                <ul className="space-y-0.5">
-                                    {groupSections.map((section) => {
-                                        const isActive = activeSection?.id === section.id
-                                        return (
-                                            <li key={section.id}>
-                                                <div className="flex items-center justify-between group/item relative">
-                                                    <NavLink
-                                                        to={isAdmin
-                                                            ? `/admin/brand/${params.brandId}/${section.slug}`
-                                                            : `/brand/${brandData?.slug || params.slug}/${section.slug}`
-                                                        }
-                                                        className={`flex-1 py-1 px-2 -mx-2 rounded-md transition-all text-[13px] tracking-tight ${isActive ? 'font-medium text-gray-900 bg-gray-100' : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
-                                                    >
-                                                        {decodeEntities(section.title)}
-                                                    </NavLink>
-                                                    {isAdmin && sections.length > 1 && (
-                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity bg-white/50 backdrop-blur-sm rounded">
-                                                            <button
-                                                                onClick={() => setSectionToDelete(section.id)}
-                                                                className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                                                            >
-                                                                <Trash2 size={13} />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {isActive && subheadings.length > 0 && (
-                                                    <ul className="mt-1 ml-4 space-y-1">
-                                                        {subheadings.map(sub => (
-                                                            <li key={sub.id}>
-                                                                <a
-                                                                    href={`#${sub.id}`}
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault()
-                                                                        document.getElementById(sub.id)?.scrollIntoView({ behavior: 'smooth' })
-                                                                    }}
-                                                                    className={`
+                        {Object.entries(groupedSections).map(([groupName, groupSections], groupIndex) => {
+                            // Hide header if it's redundant (single section with same name)
+                            const isRedundantHeader = groupSections.length === 1 &&
+                                (groupSections[0].title || '').trim().toLowerCase() === groupName.trim().toLowerCase()
+
+                            return (
+                                <div key={groupName} className={groupIndex === 0 ? '' : 'pt-4'}>
+                                    {!isRedundantHeader && (
+                                        <h3
+                                            className={`text-[14px] font-semibold text-[#111] mb-2 ${isAdmin ? 'cursor-text hover:text-gray-600' : ''}`}
+                                            contentEditable={isAdmin}
+                                            suppressContentEditableWarning
+                                            onBlur={(e) => {
+                                                const newGroupName = e.currentTarget.textContent.trim()
+                                                if (isAdmin && newGroupName && newGroupName !== groupName) {
+                                                    groupSections.forEach(section => {
+                                                        updateSection(section.id, { group: newGroupName })
+                                                    })
+                                                }
+                                            }}
+                                        >
+                                            {groupName}
+                                        </h3>
+                                    )}
+                                    <ul className="space-y-0.5">
+                                        {groupSections.map((section) => {
+                                            const isActive = activeSection?.id === section.id
+                                            return (
+                                                <li key={section.id}>
+                                                    <div className="flex items-center justify-between group/item relative">
+                                                        <NavLink
+                                                            to={isAdmin
+                                                                ? `/admin/brand/${params.brandId}/${section.slug}`
+                                                                : `/brand/${brandData?.slug || params.slug}/${section.slug}`
+                                                            }
+                                                            className={`flex-1 py-1 px-2 -mx-2 rounded-md transition-all text-[13px] tracking-tight ${isActive ? 'font-medium text-gray-900 bg-gray-100' : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                                                        >
+                                                            {decodeEntities(section.title)}
+                                                        </NavLink>
+                                                        {isAdmin && sections.length > 1 && (
+                                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity bg-white/50 backdrop-blur-sm rounded">
+                                                                <button
+                                                                    onClick={() => setSectionToDelete(section.id)}
+                                                                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <Trash2 size={13} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {isActive && subheadings.length > 0 && (
+                                                        <ul className="mt-1 ml-4 space-y-1">
+                                                            {subheadings.map(sub => (
+                                                                <li key={sub.id}>
+                                                                    <a
+                                                                        href={`#${sub.id}`}
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault()
+                                                                            document.getElementById(sub.id)?.scrollIntoView({ behavior: 'smooth' })
+                                                                        }}
+                                                                        className={`
                                                                         block py-1 pl-4 text-[13px] font-light text-[#868585] transition-colors
                                                                         hover:text-[#1c1c1c]
                                                                     `}
-                                                                >
-                                                                    {sub.text || 'Untitled'}
-                                                                </a>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </li>
-                                        )
-                                    })}
-                                </ul>
-                            </div>
-                        ))}
+                                                                    >
+                                                                        {sub.text || 'Untitled'}
+                                                                    </a>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </li>
+                                            )
+                                        })}
+                                    </ul>
+
+                                </div>
+                            )
+                        })}
                         {isAdmin && (
                             <button
                                 onClick={handleAddSection}
