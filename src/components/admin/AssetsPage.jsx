@@ -1181,7 +1181,7 @@ export default function AssetsPage({ isAdmin = true }) {
 
                                                                 {/* File Assets Grid */}
                                                                 {viewMode === 'grid' ? (
-                                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                                                                    <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4">
                                                                         {sectionAssets.filter(a => a.category !== 'text').map(asset => (
                                                                             asset.is_folder ? (
                                                                                 <FolderAssetCard

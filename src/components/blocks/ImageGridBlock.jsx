@@ -8,10 +8,10 @@ const GRID_LAYOUTS = {
     2: 'grid-cols-2',
     3: 'grid-cols-2 md:grid-cols-2',
     4: 'grid-cols-2',
-    5: 'grid-cols-2 md:grid-cols-3',
-    6: 'grid-cols-2 md:grid-cols-3',
-    7: 'grid-cols-2 md:grid-cols-3',
-    8: 'grid-cols-2 md:grid-cols-3'
+    5: 'grid-cols-2 md:grid-cols-2',
+    6: 'grid-cols-2 md:grid-cols-2',
+    7: 'grid-cols-2 md:grid-cols-2',
+    8: 'grid-cols-2 md:grid-cols-2'
 }
 
 const ASPECT_RATIOS = {

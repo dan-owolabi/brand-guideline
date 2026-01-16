@@ -377,9 +377,7 @@ export default function AssetBlock({ content, isAdmin = false, onUpdate, brand }
             {filteredAssets.length > 0 ? (
                 <div className={
                     viewMode === 'grid'
-                        ? filteredAssets.length === 4
-                            ? 'grid grid-cols-2 gap-3 md:gap-4'  // 2x2 grid for exactly 4 items
-                            : 'grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4'  // 3 per row on desktop
+                        ? 'grid grid-cols-2 gap-3 md:gap-4'
                         : 'space-y-3'
                 }>
                     {filteredAssets.map((asset, index) => (
