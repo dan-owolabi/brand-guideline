@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase, uploadFile } from '../../lib/supabase'
 import { createDefaultSections } from '../../data/defaultSections'
+import { useAuth } from '../../contexts/AuthContext'
+import { getBrandUrl } from '../../lib/domainResolver'
 import {
     Plus, Settings, Trash2, Loader2, ExternalLink,
-    Compass, Briefcase, LayoutGrid, Upload, Type
+    Compass, Briefcase, LayoutGrid, Upload, Type, ChevronDown, LogOut, User
 } from 'lucide-react'
 
 const GOOGLE_FONTS = [
@@ -66,6 +68,8 @@ export default function BrandsDashboard() {
     const editFileInputRef = useRef(null)
     const editBannerInputRef = useRef(null)
 
+    const { user, currentAccount, accounts, switchAccount, signOut, canEdit } = useAuth()
+
     useEffect(() => {
         loadBrands()
     }, [])
@@ -74,7 +78,7 @@ export default function BrandsDashboard() {
         try {
             const { data, error } = await supabase
                 .from('brands')
-                .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, published, slug')
+                .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, published, slug, account_id')
                 .order('created_at', { ascending: false })
 
             if (error) throw error
@@ -163,7 +167,8 @@ export default function BrandsDashboard() {
                     font_family: newBrand.font,
                     banner_url: newBrand.bannerUrl,
                     draft: defaultDraft,
-                    published: null
+                    published: null,
+                    account_id: currentAccount?.id
                 })
                 .select()
                 .single()
@@ -268,27 +273,63 @@ export default function BrandsDashboard() {
             <aside className="hidden md:flex w-64 bg-white border-r border-gray-100 flex-shrink-0 flex-col fixed top-0 bottom-0 left-0 z-30">
                 <div className="p-6">
                     <div className="flex items-center gap-2 font-bold text-xl mb-8">
-                        <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
-                            <Compass size={20} />
-                        </div>
-                        Guidrr
+                        <img src="/guidr-logo.png" alt="Guidr" className="h-8" />
                     </div>
 
                     <div className="space-y-1">
                         <SidebarItem icon={Briefcase} label="Brand Guidelines" active />
-                        {/* <SidebarItem icon={LayoutGrid} label="Assets" /> */}
-                        {/* <SidebarItem icon={Settings} label="Settings" /> */}
+                        <Link to="/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium">
+                            <Settings size={18} />
+                            Settings
+                        </Link>
                     </div>
                 </div>
 
-                <div className="mt-auto p-6 border-t border-gray-100">
-                    <button className="flex items-center gap-3 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500" />
-                        <div>
-                            <p className="text-gray-900">Danny O.</p>
-                            <p className="text-xs text-gray-400">Independent</p>
+                <div className="mt-auto p-4 border-t border-gray-100 space-y-2">
+                    {/* Account Switcher */}
+                    {accounts.length > 1 && (
+                        <div className="relative group">
+                            <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600">
+                                <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {currentAccount?.name?.charAt(0) || 'A'}
+                                </div>
+                                <span className="flex-1 text-left truncate">{currentAccount?.name}</span>
+                                <ChevronDown size={14} />
+                            </button>
+                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                                {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
+                                    <button
+                                        key={account.id}
+                                        onClick={() => switchAccount(account.id)}
+                                        className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left"
+                                    >
+                                        <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
+                                            {account.name?.charAt(0) || 'A'}
+                                        </div>
+                                        <span className="truncate">{account.name}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </button>
+                    )}
+
+                    {/* User Profile */}
+                    <div className="flex items-center gap-3 p-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-medium">
+                            {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
+                            <p className="text-xs text-gray-400 truncate">{currentAccount?.role || 'Member'}</p>
+                        </div>
+                        <button
+                            onClick={signOut}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                            title="Sign out"
+                        >
+                            <LogOut size={16} />
+                        </button>
+                    </div>
                 </div>
             </aside>
 

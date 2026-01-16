@@ -220,7 +220,7 @@ export default function AdminLayout() {
                 <SheetContent side="left" className="w-64 p-0">
                     {/* Same structure as desktop sidebar roughly */}
                     <div className="h-16 flex items-center px-4 border-b">
-                        <span className="font-bold text-lg">Guidrr Admin</span>
+                        <img src="/guidr-logo.png" alt="Guidr" className="h-7" />
                     </div>
                     <ScrollArea className="flex-1 px-3 py-4">
                         {/* Simplified nav for mobile */}

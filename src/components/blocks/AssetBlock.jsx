@@ -239,6 +239,9 @@ export default function AssetBlock({ content, isAdmin = false, onUpdate, brand }
 
     const assets = content?.assets || []
 
+    // 2 columns on mobile, 3 on desktop
+    const gridClass = "grid-cols-2 md:grid-cols-3"
+
     // Filter and sort assets
     const filteredAssets = assets
         .filter(asset => {
@@ -377,7 +380,7 @@ export default function AssetBlock({ content, isAdmin = false, onUpdate, brand }
             {filteredAssets.length > 0 ? (
                 <div className={
                     viewMode === 'grid'
-                        ? 'grid grid-cols-2 gap-3 md:gap-4'
+                        ? 'grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4'
                         : 'space-y-3'
                 }>
                     {filteredAssets.map((asset, index) => (

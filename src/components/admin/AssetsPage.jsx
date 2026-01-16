@@ -113,6 +113,7 @@ export default function AssetsPage({ isAdmin = true }) {
     const fileInputRef = useRef(null)
     const bannerInputRef = useRef(null)
     const [currentFolderId, setCurrentFolderId] = useState(null)
+    const [searchQuery, setSearchQuery] = useState('')
 
     // Confirm modal state
     const [confirmModal, setConfirmModal] = useState({ open: false })
@@ -199,7 +200,6 @@ export default function AssetsPage({ isAdmin = true }) {
         try {
             const newSection = {
                 id: crypto.randomUUID(),
-                id: crypto.randomUUID(),
                 brand_id: brand.id,
                 name: newSectionName.trim(),
                 order: sections.length
@@ -227,7 +227,6 @@ export default function AssetsPage({ isAdmin = true }) {
         if (!section) return
 
         const newSection = {
-            id: crypto.randomUUID(),
             id: crypto.randomUUID(),
             brand_id: brand.id,
             name: `${section.name} (copy)`,
@@ -363,7 +362,6 @@ export default function AssetsPage({ isAdmin = true }) {
             // Create new folder
             const newId = crypto.randomUUID()
             const newFolder = {
-                id: newId,
                 id: newId,
                 brand_id: brand.id,
                 name: folderName,
@@ -608,7 +606,6 @@ export default function AssetsPage({ isAdmin = true }) {
         const defaultText = variant === 'heading' ? 'New Heading' : 'Add description here...'
         const textBlock = {
             id: tempId,
-            id: tempId,
             brand_id: brand.id,
             name: defaultText,
             description: defaultText,
@@ -669,7 +666,6 @@ export default function AssetsPage({ isAdmin = true }) {
 
                 const newFolder = {
                     id: tempId,
-                    id: tempId,
                     brand_id: brand.id,
                     name: folderName,
                     is_folder: true,
@@ -704,12 +700,21 @@ export default function AssetsPage({ isAdmin = true }) {
     }
 
     // Get assets for a section
+    // Get assets for a section
     const getAssetsForSection = (sectionId) => {
-        return assets.filter(a => a.collection_id === sectionId && !a.parent_id)
+        return assets.filter(a =>
+            a.collection_id === sectionId &&
+            !a.parent_id &&
+            a.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
     }
 
     // Get uncategorized assets (exclude nested files)
-    const uncategorizedAssets = assets.filter(a => !a.collection_id && !a.parent_id)
+    const uncategorizedAssets = assets.filter(a =>
+        !a.collection_id &&
+        !a.parent_id &&
+        a.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
 
     if (loading) {
         return (
@@ -753,120 +758,163 @@ export default function AssetsPage({ isAdmin = true }) {
                 publishSuccess={publishSuccess}
             />
 
-            {/* Hero Banner */}
-            <div className="mt-24 md:mt-36 px-4 md:px-8 pt-4 md:pt-8 max-w-5xl mx-auto">
-                {/* Title - Editable in admin */}
-                <div className="mb-6">
-                    <h1
-                        contentEditable={isAdmin}
-                        suppressContentEditableWarning
-                        onBlur={(e) => setPageTitle(e.currentTarget.textContent)}
-                        className={`text-3xl font-bold text-gray-900 tracking-tight outline-none ${isAdmin ? 'hover:bg-gray-100 rounded px-1 -mx-1' : ''}`}
-                    >
-                        {pageTitle}
-                    </h1>
-                    <p
-                        contentEditable={isAdmin}
-                        suppressContentEditableWarning
-                        onBlur={(e) => setPageDescription(e.currentTarget.textContent)}
-                        className={`text-gray-500 mt-2 outline-none ${isAdmin ? 'hover:bg-gray-100 rounded px-1 -mx-1' : ''}`}
-                    >
-                        {pageDescription}
-                    </p>
-                </div>
-
-                {/* Banner Image */}
-                <div className="relative w-full h-[280px] group bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
-                    <div
-                        className="absolute inset-0"
-                        style={{ backgroundColor: brand?.primary_color || '#111827' }}
-                    >
-                        {brand?.banner_url && (
-                            <img
-                                src={brand.banner_url}
-                                alt="Banner"
-                                className="w-full h-full object-cover"
-                            />
-                        )}
+            {/* Hero Banner - Hidden when browsing a folder */}
+            {!currentFolderId && (
+                <div className="mt-24 md:mt-36 px-4 md:px-8 pt-4 md:pt-8 max-w-5xl mx-auto">
+                    {/* Title - Editable in admin */}
+                    <div className="mb-6">
+                        <h1
+                            contentEditable={isAdmin}
+                            suppressContentEditableWarning
+                            onBlur={(e) => setPageTitle(e.currentTarget.textContent)}
+                            className={`text-3xl font-bold text-gray-900 tracking-tight outline-none ${isAdmin ? 'hover:bg-gray-100 rounded px-1 -mx-1' : ''}`}
+                        >
+                            {pageTitle}
+                        </h1>
+                        <p
+                            contentEditable={isAdmin}
+                            suppressContentEditableWarning
+                            onBlur={(e) => setPageDescription(e.currentTarget.textContent)}
+                            className={`text-gray-500 mt-2 outline-none ${isAdmin ? 'hover:bg-gray-100 rounded px-1 -mx-1' : ''}`}
+                        >
+                            {pageDescription}
+                        </p>
                     </div>
 
-                    {/* Change Cover Button - Admin Only */}
-                    {isAdmin && (
-                        <button
-                            onClick={() => bannerInputRef.current?.click()}
-                            className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 bg-black/40 text-white/90 rounded-lg text-sm font-medium opacity-0 group-hover:opacity-100 transition-all hover:bg-black/60 backdrop-blur-sm z-10"
+                    {/* Banner Image */}
+                    <div className="relative w-full h-[280px] group bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
+                        <div
+                            className="absolute inset-0"
+                            style={{ backgroundColor: brand?.primary_color || '#111827' }}
                         >
-                            <ImageIcon size={16} />
-                            Change Cover
-                        </button>
-                    )}
+                            {brand?.banner_url && (
+                                <img
+                                    src={brand.banner_url}
+                                    alt="Banner"
+                                    className="w-full h-full object-cover"
+                                />
+                            )}
+                        </div>
 
-                    {/* Download All Button */}
-                    <button
-                        onClick={handleDownloadAll}
-                        disabled={downloading || assets.filter(a => !a.isUploading).length === 0}
-                        className={`absolute bottom-4 right-4 flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-all shadow-lg z-10 disabled:cursor-not-allowed ${downloading ? 'opacity-100' : 'disabled:opacity-50'}`}
-                    >
-                        {downloading ? (
-                            <Loader2 size={18} className="animate-spin" />
-                        ) : (
-                            <Download size={18} />
+                        {/* Change Cover Button - Admin Only */}
+                        {isAdmin && (
+                            <button
+                                onClick={() => bannerInputRef.current?.click()}
+                                className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 bg-black/40 text-white/90 rounded-lg text-sm font-medium opacity-0 group-hover:opacity-100 transition-all hover:bg-black/60 backdrop-blur-sm z-10"
+                            >
+                                <ImageIcon size={16} />
+                                Change Cover
+                            </button>
                         )}
-                        {downloading ? 'Downloading...' : 'Download All'}
-                    </button>
 
-                    <input
-                        ref={bannerInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleBannerUpload}
-                    />
+                        {/* Download All Button */}
+                        <button
+                            onClick={handleDownloadAll}
+                            disabled={downloading || assets.filter(a => !a.isUploading).length === 0}
+                            className={`absolute bottom-4 right-4 flex items-center gap-2 px-5 py-2.5 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-all shadow-lg z-10 disabled:cursor-not-allowed ${downloading ? 'opacity-100' : 'disabled:opacity-50'}`}
+                        >
+                            {downloading ? (
+                                <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                                <Download size={18} />
+                            )}
+                            {downloading ? 'Downloading...' : 'Download All'}
+                        </button>
+
+                        <input
+                            ref={bannerInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleBannerUpload}
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Main Content */}
             <main className="max-w-5xl mx-auto px-8 pb-24 pt-8 space-y-6">
 
                 {/* View Mode Toggle - Moved closer to sections */}
-                <div className="flex items-center justify-between pt-4">
-                    <h2 className="text-lg font-medium text-gray-900">Files</h2>
-                    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                            <LayoutGrid size={16} />
-                        </button>
-                        <button
-                            onClick={() => setViewMode('table')}
-                            className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                            <List size={16} />
-                        </button>
+                {!currentFolderId && (
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
+                        <div className="flex items-center gap-4 flex-1">
+                            <h2 className="text-lg font-medium text-gray-900 shrink-0">Files</h2>
+                            <div className="relative flex-1 max-w-sm">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Search files..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                <LayoutGrid size={16} />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                <List size={16} />
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Sections */}
                 {/* Folder View or Sections View */}
                 {currentFolderId ? (
                     <div className="space-y-6">
                         {/* Breadcrumbs Header */}
-                        <div className="flex items-center justify-between sticky top-0 bg-gray-50/95 backdrop-blur py-4 -my-4">
-                            <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm">
-                                <button onClick={() => setCurrentFolderId(null)} className="hover:text-gray-900 flex items-center gap-1 transition-colors">
-                                    <Home size={14} /> Home
-                                </button>
-                                {getBreadcrumbs().slice(0, -1).map((b, i) => (
-                                    <span key={b.id} className="flex items-center gap-2">
-                                        <ChevronRight size={14} className="text-gray-300" />
-                                        <button onClick={() => setCurrentFolderId(b.id)} className="hover:text-gray-900 font-medium transition-colors">
-                                            {b.name}
-                                        </button>
-                                    </span>
-                                ))}
-                                <ChevronRight size={14} className="text-gray-300" />
-                                <span className="text-gray-900 max-w-[200px] truncate">{assets.find(a => a.id === currentFolderId)?.name}</span>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 bg-gray-50/95 backdrop-blur py-4 -my-4 z-40">
+                            <div className="flex items-center flex-1 gap-4 min-w-0">
+                                <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm shrink-0 overflow-x-auto max-w-[50%] md:max-w-none">
+                                    <button onClick={() => setCurrentFolderId(null)} className="hover:text-gray-900 flex items-center gap-1 transition-colors">
+                                        <Home size={14} /> <span className="hidden md:inline">Home</span>
+                                    </button>
+                                    {getBreadcrumbs().slice(0, -1).map((b, i) => (
+                                        <span key={b.id} className="flex items-center gap-2 shrink-0">
+                                            <ChevronRight size={14} className="text-gray-300" />
+                                            <button onClick={() => setCurrentFolderId(b.id)} className="hover:text-gray-900 font-medium transition-colors whitespace-nowrap">
+                                                {b.name}
+                                            </button>
+                                        </span>
+                                    ))}
+                                    <ChevronRight size={14} className="text-gray-300 shrink-0" />
+                                    <span className="text-gray-900 truncate">{assets.find(a => a.id === currentFolderId)?.name}</span>
+                                </div>
+                                {/* Search in folder */}
+                                <div className="relative flex-1 max-w-sm">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search in folder..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 shrink-0">
+                                    <button
+                                        onClick={() => setViewMode('grid')}
+                                        className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        <LayoutGrid size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('table')}
+                                        className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        <List size={16} />
+                                    </button>
+                                </div>
                             </div>
 
                             {isAdmin && (
@@ -915,8 +963,11 @@ export default function AssetsPage({ isAdmin = true }) {
 
 
                         {/* Folder Assets Grid */}
-                        <div className={`mt-6 ${viewMode === 'grid' ? "grid grid-cols-3 gap-4" : "space-y-2"}`}>
-                            {assets.filter(a => a.parent_id === currentFolderId).map(asset => (
+                        <div className={`mt-6 ${viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 gap-4" : "space-y-2"}`}>
+                            {assets.filter(a =>
+                                a.parent_id === currentFolderId &&
+                                a.name.toLowerCase().includes(searchQuery.toLowerCase())
+                            ).map(asset => (
                                 asset.is_folder ? (
                                     <FolderAssetCard
                                         key={asset.id}
@@ -1181,7 +1232,7 @@ export default function AssetsPage({ isAdmin = true }) {
 
                                                                 {/* File Assets Grid */}
                                                                 {viewMode === 'grid' ? (
-                                                                    <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4">
+                                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                                                                         {sectionAssets.filter(a => a.category !== 'text').map(asset => (
                                                                             asset.is_folder ? (
                                                                                 <FolderAssetCard
@@ -1583,7 +1634,7 @@ function AssetCard({ asset, isAdmin, onDelete, onPreview, sections, onMove, onUp
             </div>
 
             {/* Actions */}
-            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-2 right-2 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 <a
                     href={asset.file_url}
                     download

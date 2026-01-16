@@ -34,7 +34,7 @@ export default function FolderAssetCard({
     return (
         <div
             className="group relative bg-white border border-gray-100 rounded-xl p-3 hover:shadow-md transition-all cursor-pointer"
-            onDoubleClick={() => onEnter(asset.id)}
+            onClick={() => onEnter(asset.id)}
         >
             <div className="aspect-square bg-gray-50/50 rounded-lg flex items-center justify-center mb-3 group-hover:bg-gray-100 transition-colors">
                 <FolderPlaceholder className="w-32 h-32" />
@@ -62,70 +62,81 @@ export default function FolderAssetCard({
                 </div>
             </div>
 
-            {/* Actions Menu */}
-            {isAdmin && (
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            setShowMenu(!showMenu)
-                        }}
-                        className="p-1 hover:bg-white rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        <MoreVertical size={16} />
-                    </button>
+            {/* Actions */}
+            <div className="absolute top-2 right-2 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onDownload(asset.id)
+                    }}
+                    className="p-1.5 bg-white/90 backdrop-blur rounded-lg shadow-sm hover:bg-white text-gray-600"
+                >
+                    <Download size={14} />
+                </button>
+                {isAdmin && (
+                    <div className="relative">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setShowMenu(!showMenu)
+                            }}
+                            className="p-1.5 bg-white/90 backdrop-blur rounded-lg shadow-sm hover:bg-white text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <MoreVertical size={16} />
+                        </button>
 
-                    {showMenu && (
-                        <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-10 animate-in fade-in zoom-in duration-150">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onEnter(asset.id)
-                                    setShowMenu(false)
-                                }}
-                                className="w-full text-left px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                                <FolderOpen size={14} />
-                                Open
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    setIsRenaming(true)
-                                    setShowMenu(false)
-                                }}
-                                className="w-full text-left px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                                <Edit2 size={14} />
-                                Rename
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onDownload(asset.id)
-                                    setShowMenu(false)
-                                }}
-                                className="w-full text-left px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                                <Download size={14} />
-                                Download
-                            </button>
-                            <hr className="my-1 border-gray-50" />
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onDelete(asset.id)
-                                    setShowMenu(false)
-                                }}
-                                className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                            >
-                                <Trash2 size={14} />
-                                Delete
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
+                        {showMenu && (
+                            <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-10 animate-in fade-in zoom-in duration-150">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onEnter(asset.id)
+                                        setShowMenu(false)
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                    <FolderOpen size={14} />
+                                    Open
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setIsRenaming(true)
+                                        setShowMenu(false)
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                    <Edit2 size={14} />
+                                    Rename
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onDownload(asset.id)
+                                        setShowMenu(false)
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                    <Download size={14} />
+                                    Download
+                                </button>
+                                <hr className="my-1 border-gray-50" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onDelete(asset.id)
+                                        setShowMenu(false)
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} />
+                                    Delete
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
