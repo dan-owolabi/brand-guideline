@@ -4,6 +4,7 @@ import { useBrandEditor } from '../hooks/useBrandEditor'
 import { getBlockComponent } from './blocks'
 import BlockWrapper from './editor/BlockWrapper'
 import { Dialog, DialogContent, DialogFooter } from './ui/Dialog'
+import { PublishModal } from './ui/PublishModal'
 import Header from './Header'
 import { Plus, Loader2, ChevronLeft, ChevronRight, Trash2, GripVertical, Copy, X } from 'lucide-react'
 import BlockTypeSwitcher from './editor/BlockTypeSwitcher'
@@ -211,11 +212,18 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
     const prevSection = activeSectionIndex > 0 ? allSectionsList[activeSectionIndex - 1] : null
     const nextSection = activeSectionIndex < allSectionsList.length - 1 ? allSectionsList[activeSectionIndex + 1] : null
 
-    const handlePublish = async () => {
+    const [publishModalOpen, setPublishModalOpen] = useState(false)
+
+    const handlePublishClick = () => {
+        setPublishModalOpen(true)
+    }
+
+    const handleConfirmPublish = async (slug) => {
         setIsPublishing(true)
         try {
-            await publish()
+            await publish({ slug })
             setPublishSuccess(true)
+            setPublishModalOpen(false)
             setTimeout(() => setPublishSuccess(false), 3000)
         } catch (err) {
             alert('Failed to publish: ' + err.message)
@@ -384,7 +392,7 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
             <Header
                 brand={brandMetadata}
                 isAdmin={isAdmin}
-                onPublish={handlePublish}
+                onPublish={handlePublishClick}
                 isPublishing={isPublishing}
                 publishSuccess={publishSuccess}
                 sidebarOpen={sidebarOpen}
@@ -757,6 +765,15 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                 </div>
             )}
 
+            <PublishModal
+                isOpen={publishModalOpen}
+                onClose={() => setPublishModalOpen(false)}
+                onConfirm={handleConfirmPublish}
+                // Fallback to name-based slug if not set
+                initialSlug={brandMetadata?.slug || (brandMetadata?.name ? brandMetadata.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')}
+                brandName={brandMetadata?.name}
+                isPublishing={isPublishing}
+            />
         </div>
     )
 }
