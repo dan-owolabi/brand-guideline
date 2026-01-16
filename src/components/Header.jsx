@@ -110,7 +110,7 @@ export default function Header({
 
     return (
         <header
-            className={`fixed top-4 ${isAdmin ? 'left-4 right-4 px-6' : 'left-8 right-8 px-10'} h-24 z-50 flex items-center justify-between shadow-sm transition-all rounded-full group/header`}
+            className={`fixed top-2 md:top-4 left-2 right-2 md:left-4 md:right-4 ${isAdmin ? 'px-4 md:px-6' : 'px-4 md:px-10'} h-16 md:h-24 z-50 flex items-center justify-between shadow-sm transition-all rounded-full group/header`}
             style={{ backgroundColor: bgColor }}
         >
             {isAdmin && (
@@ -179,9 +179,9 @@ export default function Header({
             </div>
 
             {/* Right Side: Nav + Actions */}
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-4 md:gap-8">
                 <nav
-                    className="flex items-center gap-6 font-medium text-[15px]"
+                    className="hidden md:flex items-center gap-6 font-medium text-[15px]"
                     style={{ color: textColor }}
                 >
                     <Link
@@ -196,16 +196,15 @@ export default function Header({
                     >
                         Assets
                     </Link>
-                    {/* Documentation link removed */}
                 </nav>
 
                 {isAdmin ? (
-                    <div className={`flex items-center gap-3 pl-6 border-l ${isDarkBg ? 'border-white/10' : 'border-black/5'}`}>
+                    <div className={`flex items-center gap-2 md:gap-3 md:pl-6 md:border-l ${isDarkBg ? 'border-white/10' : 'border-black/5'}`}>
                         {/* View Live (Icon Only) */}
                         <a
                             href={viewLiveUrl}
                             target="_blank"
-                            className={iconBtnClass}
+                            className={`${iconBtnClass} hidden md:flex`}
                             title="View Live Site"
                         >
                             <ExternalLink size={18} />
@@ -215,19 +214,19 @@ export default function Header({
                             onClick={onPublish}
                             disabled={isPublishing}
                             className={`
-                                flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium text-gray-900 transition-all shadow-lg
+                                flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-medium text-gray-900 transition-all shadow-lg
                                 ${publishSuccess ? 'bg-green-400 hover:bg-green-300' : 'bg-white hover:bg-gray-50'}
                                 ${isPublishing ? 'opacity-75 cursor-wait' : ''}
                             `}
                         >
                             {isPublishing ? (
-                                <Loader2 size={16} className="animate-spin" />
+                                <Loader2 size={14} className="animate-spin" />
                             ) : publishSuccess ? (
-                                <Check size={16} />
+                                <Check size={14} />
                             ) : (
-                                <Globe size={16} />
+                                <Globe size={14} />
                             )}
-                            {isPublishing ? 'Publishing' : publishSuccess ? 'Published' : 'Publish'}
+                            <span className="hidden sm:inline">{isPublishing ? 'Publishing' : publishSuccess ? 'Published' : 'Publish'}</span>
                         </button>
                     </div>
                 ) : null}

@@ -426,10 +426,10 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                 onUpdateBrand={updateBrandMetadata}
             />
 
-            <div className="flex pt-24 h-[calc(100vh-1rem)]">
+            <div className="flex pt-20 md:pt-24 min-h-screen">
                 {/* Sidebar */}
                 <aside className={`
-                    fixed md:relative left-0 top-32 md:top-0 bottom-0 w-64 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 z-40
+                    fixed md:relative left-0 top-20 md:top-0 bottom-0 w-64 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 z-40
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:w-0 md:translate-x-0 md:border-none md:opacity-0 pointer-events-none md:pointer-events-none'}
                 `}>
                     <nav className="flex-1 px-6 py-8 min-w-[16rem] overflow-y-auto">
@@ -525,13 +525,13 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                 </aside>
 
                 {/* Main Content */}
-                <main className={`flex-1 pt-32 pb-24 px-8 md:px-16 overflow-y-auto transition-all duration-300 ${sidebarOpen ? '' : 'md:-ml-0'}`}>
+                <main className={`flex-1 pt-8 md:pt-32 pb-24 px-4 md:px-16 overflow-y-auto transition-all duration-300 ${sidebarOpen ? '' : 'md:-ml-0'}`}>
                     <article className="max-w-3xl mx-auto pb-24">
                         {activeSection && (
                             <>
                                 {/* Section Title */}
                                 <h1
-                                    className={`text-4xl font-bold text-gray-900 mb-8 ${isAdmin ? 'cursor-text hover:bg-gray-50 rounded px-1 -mx-1' : ''}`}
+                                    className={`text-2xl md:text-4xl font-bold text-gray-900 mb-6 md:mb-8 ${isAdmin ? 'cursor-text hover:bg-gray-50 rounded px-1 -mx-1' : ''}`}
                                     contentEditable={isAdmin}
                                     suppressContentEditableWarning
                                     onBlur={(e) => {

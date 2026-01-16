@@ -264,8 +264,8 @@ export default function BrandsDashboard() {
 
     return (
         <div className="flex min-h-screen bg-gray-50 font-sans">
-            {/* Sidebar */}
-            <aside className="w-64 bg-white border-r border-gray-100 flex-shrink-0 flex flex-col fixed top-0 bottom-0 left-0 z-30">
+            {/* Sidebar - hidden on mobile */}
+            <aside className="hidden md:flex w-64 bg-white border-r border-gray-100 flex-shrink-0 flex-col fixed top-0 bottom-0 left-0 z-30">
                 <div className="p-6">
                     <div className="flex items-center gap-2 font-bold text-xl mb-8">
                         <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
@@ -293,7 +293,7 @@ export default function BrandsDashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 ml-64 p-8">
+            <main className="flex-1 md:ml-64 p-4 md:p-8">
                 {/* Header Actions */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">

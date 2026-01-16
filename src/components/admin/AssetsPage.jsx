@@ -754,7 +754,7 @@ export default function AssetsPage({ isAdmin = true }) {
             />
 
             {/* Hero Banner */}
-            <div className="mt-36 px-8 pt-8 max-w-5xl mx-auto">
+            <div className="mt-24 md:mt-36 px-4 md:px-8 pt-4 md:pt-8 max-w-5xl mx-auto">
                 {/* Title - Editable in admin */}
                 <div className="mb-6">
                     <h1
