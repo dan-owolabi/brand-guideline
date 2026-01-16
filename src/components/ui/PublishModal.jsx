@@ -72,7 +72,7 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                             </label>
                             <div className="relative">
                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                                    {host}/
+                                    {host}/brand/
                                 </div>
                                 <input
                                     type="text"
@@ -83,7 +83,7 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                                     }}
                                     placeholder="brand-name"
                                     className={`w-full pl-[calc(100%-120px)] pl-32 pr-4 py-2.5 bg-gray-50 border rounded-lg text-sm font-medium outline-none transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`}
-                                    style={{ paddingLeft: `${Math.min(host.length * 8 + 20, 180)}px` }}
+                                    style={{ paddingLeft: `${Math.min((host.length + 7) * 8 + 20, 220)}px` }}
                                 />
                             </div>
                             {error && (

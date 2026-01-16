@@ -105,8 +105,8 @@ export default function Header({
     // So `/${publicIdentifier}` works for both!
 
     const viewLiveUrl = isAssetsActive
-        ? `/${publicIdentifier}/assets`
-        : `/${publicIdentifier}`
+        ? `/brand/${publicIdentifier}/assets`
+        : `/brand/${publicIdentifier}`
 
     return (
         <header

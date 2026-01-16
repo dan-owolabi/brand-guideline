@@ -25,6 +25,8 @@ import {
 } from '@dnd-kit/sortable'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 
+import { getCanonicalUrl } from '../lib/brandResolver'
+
 /**
  * BrandCanvas - The unified renderer/editor for brand guidelines.
  * Same component serves both public (read-only) and admin (editable) views.
@@ -33,6 +35,25 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
     const params = useParams()
     const navigate = useNavigate()
     const activeSlug = params.slug
+
+    // SEO: Set Canonical URL for public views
+    useEffect(() => {
+        if (isAdmin || !brandData?.slug) return
+
+        const canonicalUrl = getCanonicalUrl(brandData.slug)
+        let link = document.querySelector("link[rel='canonical']")
+
+        if (!link) {
+            link = document.createElement('link')
+            link.setAttribute('rel', 'canonical')
+            document.head.appendChild(link)
+        }
+
+        link.setAttribute('href', canonicalUrl)
+
+        // Cleanup NOT required strictly as we want it to persist, but good practice if SPA state changes drastically
+        // For now we leave it as valid for this page
+    }, [isAdmin, brandData?.slug])
 
     // Use provided brandData (public) or fetch draft (admin)
     const {
