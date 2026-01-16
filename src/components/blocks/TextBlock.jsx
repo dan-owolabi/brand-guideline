@@ -305,7 +305,7 @@ export default function TextBlock({
 
     const blockStyle = {
         backgroundColor: bgColor,
-        padding: hasPadding ? '1rem 1.25rem' : undefined,
+        padding: hasPadding ? '0.75rem 1.25rem' : undefined,
         borderRadius: hasPadding ? '0.5rem' : undefined,
         margin: hasPadding ? '0.5rem 0' : undefined,
     }
@@ -342,7 +342,7 @@ export default function TextBlock({
                     className="absolute -right-2 top-8 bg-white rounded-lg shadow-xl border border-gray-100 p-2 z-50 min-w-[140px]"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className="text-[10px] uppercase font-semibold text-gray-400 mb-1.5 px-1">Background</div>
+                    <div className="text-[10px] uppercase font-medium tracking-wide text-gray-400 mb-1.5 px-1">Background</div>
                     <div className="flex flex-wrap gap-1 mb-2">
                         {BG_COLORS.map((color) => (
                             <button

@@ -430,7 +430,7 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
             <div className="flex pt-20 md:pt-24 min-h-screen">
                 {/* Sidebar */}
                 <aside className={`
-                    fixed md:relative left-0 top-20 md:top-0 bottom-0 w-64 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 z-40
+                    fixed md:sticky left-0 top-20 md:top-24 bottom-0 w-64 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 z-40 md:h-[calc(100vh-6rem)]
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:w-0 md:translate-x-0 md:border-none md:opacity-0 pointer-events-none md:pointer-events-none'}
                 `}>
                     <nav className="flex-1 px-6 py-8 min-w-[16rem] overflow-y-auto">
