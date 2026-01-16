@@ -401,9 +401,13 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
 
     const navigateToSection = (section) => {
         if (!section) return
-        const brandId = brandData?.brandId || params.brandId
-        const prefix = isAdmin ? `/admin/brand/${brandId}` : `/brand/${brandId}`
-        navigate(`${prefix}/${section.slug}`)
+        if (isAdmin) {
+            const brandId = brandData?.brandId || params.brandId
+            navigate(`/admin/brand/${brandId}/${section.slug}`)
+        } else {
+            const brandSlug = brandData?.slug || params.slug
+            navigate(`/brand/${brandSlug}/${section.slug}`)
+        }
     }
 
     return (
@@ -451,7 +455,10 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
                                             <li key={section.id}>
                                                 <div className="flex items-center justify-between group/item">
                                                     <NavLink
-                                                        to={isAdmin ? `/admin/brand/${params.brandId}/${section.slug}` : `/brand/${params.brandId}/${section.slug}`}
+                                                        to={isAdmin
+                                                            ? `/admin/brand/${params.brandId}/${section.slug}`
+                                                            : `/brand/${brandData?.slug || params.slug}/${section.slug}`
+                                                        }
                                                         className={`flex-1 py-0.5 transition-colors text-[14px] ${isActive ? 'font-medium text-[#111]' : 'font-normal text-[#666]'}`}
                                                     >
                                                         {decodeEntities(section.title)}
