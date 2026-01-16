@@ -34,7 +34,9 @@ import { getCanonicalUrl } from '../lib/brandResolver'
 export default function BrandCanvas({ isAdmin = false, brandData }) {
     const params = useParams()
     const navigate = useNavigate()
-    const activeSlug = params.slug
+    // For admin: params.slug is the section slug (route: /admin/brand/:brandId/:slug)
+    // For public: params.pageSlug is the section slug (route: /brand/:slug/:pageSlug)
+    const activeSlug = isAdmin ? params.slug : (params.pageSlug || params.slug)
 
     // SEO: Set Canonical URL for public views
     useEffect(() => {
