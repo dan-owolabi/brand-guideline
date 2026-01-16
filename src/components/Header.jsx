@@ -45,8 +45,14 @@ export default function Header({
 
     // Detect current page for active state
     const currentPath = location.pathname + location.hash
-    const isGuidelinesActive = currentPath.includes('/introduction') || (!currentPath.includes('/assets') && currentPath.includes('/brand/'))
+
+    // Active state logic
     const isAssetsActive = currentPath.includes('/assets')
+    const isGuidelinesActive = !isAssetsActive && (
+        currentPath === '/' ||
+        currentPath.includes('/introduction') ||
+        (isAdmin && currentPath.includes('/brand/'))
+    )
 
     // Button styles based on contrast
     const iconBtnClass = isDarkBg
@@ -82,29 +88,19 @@ export default function Header({
         onUpdateBrand?.({ primaryColor: e.target.value })
     }
 
-    // Base path for navigation
-    const basePath = isAdmin ? '/admin/brand' : '/brand'
+    // Navigation Links Logic
+    // Admin: /admin/brand/:id/introduction
+    // Public: /introduction (root-relative)
+    const guidelinesLink = isAdmin
+        ? `/admin/brand/${brand?.id}/introduction`
+        : '/introduction'
 
-    // Public URL for View Live button (points to current page equivalent)
-    // Use slug if available, otherwise fallback to ID
-    const publicIdentifier = brand?.slug || brand?.id // e.g. 'my-brand' or 'uuid'
+    const assetsLink = isAdmin
+        ? `/admin/brand/${brand?.id}/assets`
+        : '/assets'
 
-    // If using slug, path is /:slug/assets
-    // If using ID, path is /brand/:id/assets (legacy/fallback)
-    // Actually, App.jsx supports /:slug/... where slug can be uuid. So always /:identifier/...
-
-    // Wait, let's keep it robust.
-    // If it's a slug, we want `/${slug}/assets`.
-    // If it's ID, we might want `/brand/${id}/assets` OR just `/${id}/assets` if routing handles it.
-    // Our routing handles `/:slug` where slug CAN be ID.
-    // But let's check App.jsx again.
-
-    // Step 2497 App.jsx:
-    // <Route path="/:slug" ... />
-    // <Route path="/:slug/assets" ... />
-
-    // So `/${publicIdentifier}` works for both!
-
+    // Public URL for View Live button
+    const publicIdentifier = brand?.slug || brand?.id
     const viewLiveUrl = isAssetsActive
         ? `/brand/${publicIdentifier}/assets`
         : `/brand/${publicIdentifier}`
@@ -197,13 +193,13 @@ export default function Header({
                     style={{ color: textColor }}
                 >
                     <Link
-                        to={`${basePath}/${brand?.id}/introduction`}
+                        to={guidelinesLink}
                         className={getNavLinkClass(isGuidelinesActive)}
                     >
                         Guidelines
                     </Link>
                     <Link
-                        to={`${basePath}/${brand?.id}/assets`}
+                        to={assetsLink}
                         className={getNavLinkClass(isAssetsActive)}
                     >
                         Assets
