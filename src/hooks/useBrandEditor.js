@@ -48,6 +48,12 @@ export function useBrandEditor(identifier) {
 
     // Fetch initial draft data
     useEffect(() => {
+        // Skip fetch if no identifier (public views get data from props)
+        if (!identifier) {
+            setLoading(false)
+            return
+        }
+
         const fetchDraft = async () => {
             setLoading(true)
             try {
@@ -57,14 +63,10 @@ export function useBrandEditor(identifier) {
                     .from('brands')
                     .select('id, draft, published, name, slug, logo_url, primary_color')
 
-                if (identifier) {
-                    if (isUuid) {
-                        query = query.eq('id', identifier)
-                    } else {
-                        query = query.eq('slug', identifier)
-                    }
+                if (isUuid) {
+                    query = query.eq('id', identifier)
                 } else {
-                    query = query.limit(1) // Fallback or handling empty identifier
+                    query = query.eq('slug', identifier)
                 }
 
                 const { data, error } = await query.single()
@@ -109,7 +111,7 @@ export function useBrandEditor(identifier) {
             }
         }
 
-        if (identifier) fetchDraft()
+        fetchDraft()
     }, [identifier])
 
     // Debounced save function

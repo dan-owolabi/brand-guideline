@@ -1,18 +1,24 @@
 import { createClient } from '@supabase/supabase-js'
+import { compressImage } from './imageCompressor'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Helper to upload file to storage
+// Helper to upload file to storage (with automatic compression for images)
 export async function uploadFile(file, bucket = 'media') {
-    const fileExt = file.name.split('.').pop()
+    // Compress images before upload
+    const fileToUpload = file.type.startsWith('image/')
+        ? await compressImage(file)
+        : file
+
+    const fileExt = fileToUpload.name.split('.').pop()
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
 
     const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(fileName, file)
+        .upload(fileName, fileToUpload)
 
     if (error) throw error
 
