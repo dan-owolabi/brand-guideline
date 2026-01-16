@@ -20,14 +20,14 @@ import { Loader2 } from 'lucide-react'
 export default function AuthenticatedApp() {
     const { user, accounts, loading, initialized } = useAuth()
 
-    // TEMP: Skip loading check to debug
-    // if (!initialized || loading) {
-    //     return (
-    //         <div className="min-h-screen flex items-center justify-center bg-gray-50">
-    //             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-    //         </div>
-    //     )
-    // }
+    // Show loading while checking auth
+    if (!initialized || loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+        )
+    }
 
     return (
         <Routes>
@@ -50,7 +50,9 @@ export default function AuthenticatedApp() {
             {/* Protected routes (require login) */}
             <Route path="/dashboard" element={
                 <RequireAuth>
-                    <BrandsDashboard />
+                    <RequireAccount>
+                        <BrandsDashboard />
+                    </RequireAccount>
                 </RequireAuth>
             } />
             <Route path="/brand/:brandId/assets" element={

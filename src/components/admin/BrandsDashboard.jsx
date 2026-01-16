@@ -72,13 +72,19 @@ export default function BrandsDashboard() {
 
     useEffect(() => {
         loadBrands()
-    }, [])
+    }, [currentAccount?.id])
 
     const loadBrands = async () => {
+        if (!currentAccount) {
+            setLoading(false)
+            return
+        }
+
         try {
             const { data, error } = await supabase
                 .from('brands')
                 .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, published, slug, account_id')
+                .eq('account_id', currentAccount.id)
                 .order('created_at', { ascending: false })
 
             if (error) throw error
