@@ -36,6 +36,7 @@ export default function Header({
     const location = useLocation()
     const fileInputRef = useRef(null)
     const colorInputRef = useRef(null)
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
     const bgColor = brand?.primary_color || brand?.primaryColor || '#111827'
     const textColor = getContrastColor(bgColor)
@@ -148,6 +149,17 @@ export default function Header({
 
             {/* Left Side: Back + Logo */}
             <div className="flex items-center gap-4 relative z-10">
+                {/* Sidebar Toggle (Mobile Only) - Left */}
+                {onToggleSidebar && (
+                    <button
+                        onClick={onToggleSidebar}
+                        className={`${iconBtnClass} md:hidden mr-1`}
+                        title="Toggle Sidebar"
+                    >
+                        <PanelLeft size={20} />
+                    </button>
+                )}
+
                 {isAdmin && (
                     <button
                         onClick={() => navigate('/admin')}
@@ -230,7 +242,45 @@ export default function Header({
                         </button>
                     </div>
                 ) : null}
+
+                {/* Mobile Menu Toggle */}
+                <button
+                    className={`${iconBtnClass} md:hidden`}
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                >
+                    <Menu size={20} />
+                </button>
+
+                {/* Mobile Menu Dropdown */}
+                {mobileMenuOpen && (
+                    <div className="absolute top-20 left-0 right-0 bg-white shadow-xl rounded-2xl p-4 flex flex-col gap-2 md:hidden animate-in slide-in-from-top-4 z-50 mx-4 border border-gray-100">
+                        <Link
+                            to={`${basePath}/${brand?.id}/introduction`}
+                            className={`p-3 rounded-lg font-medium transition-colors ${isGuidelinesActive ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
+                            Guidelines
+                        </Link>
+                        <Link
+                            to={`${basePath}/${brand?.id}/assets`}
+                            className={`p-3 rounded-lg font-medium transition-colors ${isAssetsActive ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
+                            Assets
+                        </Link>
+                        {isAdmin && (
+                            <a
+                                href={viewLiveUrl}
+                                target="_blank"
+                                className="p-3 rounded-lg font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                                View Live Site
+                                <ExternalLink size={16} />
+                            </a>
+                        )}
+                    </div>
+                )}
             </div>
-        </header>
+        </header >
     )
 }
