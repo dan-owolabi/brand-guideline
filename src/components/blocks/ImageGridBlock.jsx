@@ -6,12 +6,12 @@ import { ImagePresets } from '../../lib/imageOptimizer'
 const GRID_LAYOUTS = {
     1: 'grid-cols-1',
     2: 'grid-cols-2',
-    3: 'grid-cols-2',
+    3: 'grid-cols-2 md:grid-cols-2',
     4: 'grid-cols-2',
-    5: 'grid-cols-3',
-    6: 'grid-cols-3',
-    7: 'grid-cols-3',
-    8: 'grid-cols-3'
+    5: 'grid-cols-2 md:grid-cols-3',
+    6: 'grid-cols-2 md:grid-cols-3',
+    7: 'grid-cols-2 md:grid-cols-3',
+    8: 'grid-cols-2 md:grid-cols-3'
 }
 
 const ASPECT_RATIOS = {
