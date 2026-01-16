@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, Check, Loader2, Globe, Menu, PanelLeft, Upload } from 'lucide-react'
 import { uploadFile } from '../lib/supabase'
 
@@ -82,13 +82,31 @@ export default function Header({
     }
 
     // Base path for navigation
-    const basePath = isAdmin ? '#/admin/brand' : '#/brand'
+    const basePath = isAdmin ? '/admin/brand' : '/brand'
 
     // Public URL for View Live button (points to current page equivalent)
-    const publicBase = `${window.location.origin}/#/brand/${brand?.id}`
+    // Use slug if available, otherwise fallback to ID
+    const publicIdentifier = brand?.slug || brand?.id // e.g. 'my-brand' or 'uuid'
+
+    // If using slug, path is /:slug/assets
+    // If using ID, path is /brand/:id/assets (legacy/fallback)
+    // Actually, App.jsx supports /:slug/... where slug can be uuid. So always /:identifier/...
+
+    // Wait, let's keep it robust.
+    // If it's a slug, we want `/${slug}/assets`.
+    // If it's ID, we might want `/brand/${id}/assets` OR just `/${id}/assets` if routing handles it.
+    // Our routing handles `/:slug` where slug CAN be ID.
+    // But let's check App.jsx again.
+
+    // Step 2497 App.jsx:
+    // <Route path="/:slug" ... />
+    // <Route path="/:slug/assets" ... />
+
+    // So `/${publicIdentifier}` works for both!
+
     const viewLiveUrl = isAssetsActive
-        ? `${publicBase}/assets`
-        : `${publicBase}/introduction`
+        ? `/${publicIdentifier}/assets`
+        : `/${publicIdentifier}`
 
     return (
         <header
@@ -166,18 +184,18 @@ export default function Header({
                     className="flex items-center gap-6 font-medium text-[15px]"
                     style={{ color: textColor }}
                 >
-                    <a
-                        href={`${basePath}/${brand?.id}/introduction`}
+                    <Link
+                        to={`${basePath}/${brand?.id}/introduction`}
                         className={getNavLinkClass(isGuidelinesActive)}
                     >
                         Guidelines
-                    </a>
-                    <a
-                        href={`${basePath}/${brand?.id}/assets`}
+                    </Link>
+                    <Link
+                        to={`${basePath}/${brand?.id}/assets`}
                         className={getNavLinkClass(isAssetsActive)}
                     >
                         Assets
-                    </a>
+                    </Link>
                     {/* Documentation link removed */}
                 </nav>
 

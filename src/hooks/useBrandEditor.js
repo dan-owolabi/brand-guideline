@@ -17,15 +17,15 @@ import { getDefaultDraft } from '../data/defaultSections'
  *   - updateBlock: (sectionId, blockIndex, newData) => void
  *   - addBlock: (sectionId, block) => void
  *   - removeBlock: (sectionId, blockIndex) => void
- *   - publish: () => Promise<void>
+ *   - publish: (options) => Promise<void>
  *   - saveDraft: () => Promise<void>
  */
-export function useBrandEditor(brandId) {
+export function useBrandEditor(identifier) {
     // History state: { past: [], present: null, future: [] }
     const [history, setHistory] = useState({ past: [], present: null, future: [] })
     const draft = history.present // Derived draft for consumption
 
-    const [brandMetadata, setBrandMetadata] = useState({ id: null, name: '', logoUrl: '', primaryColor: '' })
+    const [brandMetadata, setBrandMetadata] = useState({ id: null, name: '', slug: '', logoUrl: '', primaryColor: '' })
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState(null)
@@ -35,25 +35,36 @@ export function useBrandEditor(brandId) {
 
     // Debounce timer ref
     const saveTimer = useRef(null)
-    // Track fetched brand ID (for when brandId prop not passed)
-    const fetchedBrandIdRef = useRef(brandId)
+    // Track fetched brand ID (for when identifier prop is null/slug)
+    const fetchedBrandIdRef = useRef(null)
 
     // Get the effective brand ID
-    const getEffectiveBrandId = () => brandId || fetchedBrandIdRef.current
+    const getEffectiveBrandId = useCallback(() => {
+        // If identifier is UUID, use it. If slug, use fetchedBrandIdRef
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)
+        if (isUuid && identifier) return identifier
+        return fetchedBrandIdRef.current
+    }, [identifier])
 
     // Fetch initial draft data
     useEffect(() => {
         const fetchDraft = async () => {
             setLoading(true)
             try {
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)
+
                 let query = supabase
                     .from('brands')
-                    .select('id, draft, published, name, logo_url, primary_color')
+                    .select('id, draft, published, name, slug, logo_url, primary_color')
 
-                if (brandId) {
-                    query = query.eq('id', brandId)
+                if (identifier) {
+                    if (isUuid) {
+                        query = query.eq('id', identifier)
+                    } else {
+                        query = query.eq('slug', identifier)
+                    }
                 } else {
-                    query = query.limit(1)
+                    query = query.limit(1) // Fallback or handling empty identifier
                 }
 
                 const { data, error } = await query.single()
@@ -86,21 +97,26 @@ export function useBrandEditor(brandId) {
                 setBrandMetadata({
                     id: data.id,
                     name: data.name,
+                    slug: data.slug,
                     logoUrl: data.logo_url,
                     primaryColor: data.primary_color
                 })
             } catch (err) {
+                console.error("Fetch draft error:", err)
                 setError(err.message)
             } finally {
                 setLoading(false)
             }
         }
 
-        fetchDraft()
-    }, [brandId])
+        if (identifier) fetchDraft()
+    }, [identifier])
 
     // Debounced save function
     const debouncedSave = useCallback((newDraft) => {
+        const brandId = getEffectiveBrandId()
+        if (!brandId) return
+
         if (saveTimer.current) {
             clearTimeout(saveTimer.current)
         }
@@ -110,7 +126,7 @@ export function useBrandEditor(brandId) {
                 await supabase
                     .from('brands')
                     .update({ draft: newDraft })
-                    .eq('id', getEffectiveBrandId())
+                    .eq('id', brandId)
             } catch (err) {
                 console.error('Failed to save draft:', err)
             } finally {
@@ -129,11 +145,15 @@ export function useBrandEditor(brandId) {
 
     // Update brand metadata (name, logo, color) - Direct update (no debounce for now)
     const updateBrandMetadata = useCallback(async (updates) => {
+        const brandId = getEffectiveBrandId()
+        if (!brandId) return
+
         // Optimistic update
         setBrandMetadata(prev => ({ ...prev, ...updates }))
 
         const dbUpdates = {}
         if (updates.name !== undefined) dbUpdates.name = updates.name
+        if (updates.slug !== undefined) dbUpdates.slug = updates.slug
         if (updates.logoUrl !== undefined) dbUpdates.logo_url = updates.logoUrl
         if (updates.primaryColor !== undefined) dbUpdates.primary_color = updates.primaryColor
 
@@ -141,7 +161,7 @@ export function useBrandEditor(brandId) {
             await supabase
                 .from('brands')
                 .update(dbUpdates)
-                .eq('id', getEffectiveBrandId())
+                .eq('id', brandId)
         } catch (err) {
             console.error('Failed to update brand metadata:', err)
         }
@@ -297,29 +317,41 @@ export function useBrandEditor(brandId) {
     }, [updateDraft])
 
     // Publish: Copy draft to published
-    const publish = useCallback(async () => {
+    const publish = useCallback(async (options = {}) => {
         if (!draft) {
             console.error('Publish failed: No draft data')
             throw new Error('No draft data to publish')
         }
 
         const brandIdToUse = getEffectiveBrandId()
+        if (!brandIdToUse) throw new Error("Could not resolve Brand ID")
+
         console.log('[Publish] Starting publish for brand:', brandIdToUse)
-        console.log('[Publish] Draft data:', draft)
+        console.log('[Publish] Options:', options)
 
         setSaving(true)
         try {
+            const updates = {
+                published: draft,
+            }
+            if (options.slug) {
+                updates.slug = options.slug
+            }
+
             const { data, error } = await supabase
                 .from('brands')
-                .update({
-                    published: draft,
-                })
+                .update(updates)
                 .eq('id', brandIdToUse)
                 .select()
 
             if (error) {
                 console.error('[Publish] Supabase error:', error)
                 throw new Error(error.message || 'Failed to publish')
+            }
+
+            // If slug updated, update metadata
+            if (options.slug) {
+                setBrandMetadata(prev => ({ ...prev, slug: options.slug }))
             }
 
             console.log('[Publish] Success! Updated data:', data)
@@ -333,13 +365,14 @@ export function useBrandEditor(brandId) {
 
     // Manual save (bypasses debounce)
     const saveDraft = useCallback(async () => {
-        if (!draft) return
+        const brandId = getEffectiveBrandId()
+        if (!draft || !brandId) return
         setSaving(true)
         try {
             await supabase
                 .from('brands')
                 .update({ draft })
-                .eq('id', getEffectiveBrandId())
+                .eq('id', brandId)
         } catch (err) {
             console.error('Failed to save draft:', err)
             throw err

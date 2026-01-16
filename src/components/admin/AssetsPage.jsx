@@ -31,6 +31,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { ConfirmModal, InputModal } from '../ui/ConfirmModal'
+import { PublishModal } from '../ui/PublishModal'
 
 // File type detection
 const FILE_CATEGORIES = {
@@ -59,7 +60,9 @@ function formatFileSize(bytes) {
 }
 
 export default function AssetsPage({ isAdmin = true }) {
-    const { brandId } = useParams()
+    const { brandId, slug } = useParams()
+    // Identifier is either UUID (brandId) or Slug
+    const identifier = brandId || slug
     const navigate = useNavigate()
 
     const [brand, setBrand] = useState(null)
@@ -71,13 +74,20 @@ export default function AssetsPage({ isAdmin = true }) {
     const [downloading, setDownloading] = useState(false)
 
     // Publish functionality
-    const { publish, saving: publishing } = useBrandEditor(brandId)
+    const { publish, saving: publishing, brandMetadata } = useBrandEditor(identifier)
     const [publishSuccess, setPublishSuccess] = useState(false)
+    const [publishModalOpen, setPublishModalOpen] = useState(false)
 
-    const handlePublish = async () => {
+    // Open modal instead of publishing directly
+    const handlePublishClick = () => {
+        setPublishModalOpen(true)
+    }
+
+    const handleConfirmPublish = async (slug) => {
         try {
-            await publish()
+            await publish({ slug })
             setPublishSuccess(true)
+            setPublishModalOpen(false)
             setTimeout(() => setPublishSuccess(false), 3000)
         } catch (err) {
             alert('Failed to publish: ' + err.message)
@@ -118,19 +128,33 @@ export default function AssetsPage({ isAdmin = true }) {
 
     useEffect(() => {
         fetchData()
-    }, [brandId])
+    }, [identifier])
 
     const fetchData = async () => {
         setLoading(true)
         try {
-            // Fetch all data in parallel for faster loading
-            const [brandResult, sectionsResult, assetsResult] = await Promise.all([
-                supabase.from('brands').select('id, name, logo_url, primary_color, banner_url').eq('id', brandId).single(),
-                supabase.from('collections').select('*').eq('brand_id', brandId).order('order', { ascending: true }),
-                supabase.from('assets').select('*').eq('brand_id', brandId).order('created_at', { ascending: false })
+            // 1. Resolve Brand first (handle slug or ID)
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)
+            let brandQuery = supabase.from('brands').select('id, name, logo_url, primary_color, banner_url')
+
+            if (isUuid) {
+                brandQuery = brandQuery.eq('id', identifier)
+            } else {
+                brandQuery = brandQuery.eq('slug', identifier)
+            }
+
+            const { data: brandData, error: brandError } = await brandQuery.single()
+            if (brandError) throw brandError
+
+            setBrand(brandData)
+            const resolvedId = brandData.id
+
+            // 2. Fetch Assets and Sections using resolved UUID
+            const [sectionsResult, assetsResult] = await Promise.all([
+                supabase.from('collections').select('*').eq('brand_id', resolvedId).order('order', { ascending: true }),
+                supabase.from('assets').select('*').eq('brand_id', resolvedId).order('created_at', { ascending: false })
             ])
 
-            setBrand(brandResult.data)
             setSections(sectionsResult.data || [])
             setAssets(assetsResult.data || [])
         } catch (err) {
@@ -145,7 +169,7 @@ export default function AssetsPage({ isAdmin = true }) {
         if (!file) return
         try {
             const url = await uploadFile(file, 'media')
-            await supabase.from('brands').update({ banner_url: url }).eq('id', brandId)
+            await supabase.from('brands').update({ banner_url: url }).eq('id', brand.id)
             setBrand(prev => ({ ...prev, banner_url: url }))
         } catch (err) {
             console.error('Banner upload failed:', err)
@@ -175,7 +199,8 @@ export default function AssetsPage({ isAdmin = true }) {
         try {
             const newSection = {
                 id: crypto.randomUUID(),
-                brand_id: brandId,
+                id: crypto.randomUUID(),
+                brand_id: brand.id,
                 name: newSectionName.trim(),
                 order: sections.length
             }
@@ -203,7 +228,8 @@ export default function AssetsPage({ isAdmin = true }) {
 
         const newSection = {
             id: crypto.randomUUID(),
-            brand_id: brandId,
+            id: crypto.randomUUID(),
+            brand_id: brand.id,
             name: `${section.name} (copy)`,
             order: sections.length
         }
@@ -338,7 +364,8 @@ export default function AssetsPage({ isAdmin = true }) {
             const newId = crypto.randomUUID()
             const newFolder = {
                 id: newId,
-                brand_id: brandId,
+                id: newId,
+                brand_id: brand.id,
                 name: folderName,
                 is_folder: true,
                 parent_id: parentId,
@@ -398,7 +425,7 @@ export default function AssetsPage({ isAdmin = true }) {
                     isUploading: true,
                     collection_id: effectiveSectionId,
                     parent_id: parentId,
-                    brand_id: brandId
+                    brand_id: brand.id
                 }])
 
                 uploadFile(file, 'media').then(async (url) => {
@@ -406,7 +433,7 @@ export default function AssetsPage({ isAdmin = true }) {
                     const { category } = getFileCategory(file.name)
 
                     const { data: newAsset, error } = await supabase.from('assets').insert({
-                        brand_id: brandId,
+                        brand_id: brand.id,
                         name: file.name,
                         file_url: url,
                         thumbnail_url: isImage ? url : null,
@@ -581,7 +608,8 @@ export default function AssetsPage({ isAdmin = true }) {
         const defaultText = variant === 'heading' ? 'New Heading' : 'Add description here...'
         const textBlock = {
             id: tempId,
-            brand_id: brandId,
+            id: tempId,
+            brand_id: brand.id,
             name: defaultText,
             description: defaultText,
             category: 'text',
@@ -597,7 +625,7 @@ export default function AssetsPage({ isAdmin = true }) {
         try {
             // Save to database
             const { data: newAsset, error } = await supabase.from('assets').insert({
-                brand_id: brandId,
+                brand_id: brand.id,
                 name: defaultText,
                 description: defaultText,
                 category: 'text',
@@ -641,7 +669,8 @@ export default function AssetsPage({ isAdmin = true }) {
 
                 const newFolder = {
                     id: tempId,
-                    brand_id: brandId,
+                    id: tempId,
+                    brand_id: brand.id,
                     name: folderName,
                     is_folder: true,
                     parent_id: parentId,
@@ -654,7 +683,7 @@ export default function AssetsPage({ isAdmin = true }) {
 
                 try {
                     const { data, error } = await supabase.from('assets').insert({
-                        brand_id: brandId,
+                        brand_id: brand.id,
                         name: folderName,
                         is_folder: true,
                         parent_id: parentId,
@@ -719,7 +748,7 @@ export default function AssetsPage({ isAdmin = true }) {
             <Header
                 brand={brand}
                 isAdmin={isAdmin}
-                onPublish={handlePublish}
+                onPublish={handlePublishClick}
                 isPublishing={publishing}
                 publishSuccess={publishSuccess}
             />
@@ -1613,6 +1642,21 @@ function AssetCard({ asset, isAdmin, onDelete, onPreview, sections, onMove, onUp
                     onClick={() => setShowMenu(false)}
                 />
             )}
+            {inputModal.open && (
+                <InputModal
+                    {...inputModal}
+                    onClose={() => setInputModal({ ...inputModal, open: false })}
+                />
+            )}
+
+            <PublishModal
+                isOpen={publishModalOpen}
+                onClose={() => setPublishModalOpen(false)}
+                onConfirm={handleConfirmPublish}
+                initialSlug={brandMetadata?.slug || brand?.slug}
+                brandName={brand?.name}
+                isPublishing={publishing}
+            />
         </div>
     )
 }

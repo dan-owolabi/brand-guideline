@@ -74,7 +74,7 @@ export default function BrandsDashboard() {
         try {
             const { data, error } = await supabase
                 .from('brands')
-                .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, draft, published')
+                .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, draft, published, slug')
                 .order('created_at', { ascending: false })
 
             if (error) throw error

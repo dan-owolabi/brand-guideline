@@ -40,6 +40,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/Avatar'
 import { ScrollArea } from '../ui/ScrollArea'
 import { Sheet, SheetContent, SheetTrigger } from '../ui/Sheet'
+import { PublishModal } from '../ui/PublishModal'
 
 export default function AdminLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -63,13 +64,20 @@ export default function AdminLayout() {
     const currentBrand = brands.find(b => b.id === selectedBrandId) || brands[0]
 
     // Publish functionality for the shared header
-    const { publish, saving: publishing } = useBrandEditor(currentBrand?.id)
+    const { publish, saving: publishing, brandMetadata } = useBrandEditor(currentBrand?.id)
     const [publishSuccess, setPublishSuccess] = useState(false)
+    const [publishModalOpen, setPublishModalOpen] = useState(false)
 
-    const handlePublish = async () => {
+    // Open modal
+    const handlePublishClick = () => {
+        setPublishModalOpen(true)
+    }
+
+    const handleConfirmPublish = async (slug) => {
         try {
-            await publish()
+            await publish({ slug })
             setPublishSuccess(true)
+            setPublishModalOpen(false)
             setTimeout(() => setPublishSuccess(false), 3000)
         } catch (err) {
             alert('Failed to publish: ' + err.message)
@@ -290,7 +298,7 @@ export default function AdminLayout() {
                         <Button
                             size="sm"
                             className="gap-2 h-9 bg-emerald-600 hover:bg-emerald-700"
-                            onClick={handlePublish}
+                            onClick={handlePublishClick}
                             disabled={publishing}
                         >
                             {publishSuccess ? (
@@ -349,6 +357,16 @@ export default function AdminLayout() {
                     </form>
                 </DialogContent>
             </Dialog>
+
+            <PublishModal
+                isOpen={publishModalOpen}
+                onClose={() => setPublishModalOpen(false)}
+                onConfirm={handleConfirmPublish}
+                // Fallback to name-based slug if not set
+                initialSlug={brandMetadata?.slug || currentBrand?.slug || (currentBrand?.name ? currentBrand.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')}
+                brandName={currentBrand?.name}
+                isPublishing={publishing}
+            />
         </div>
     )
 }
