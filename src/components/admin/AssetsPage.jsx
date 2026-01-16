@@ -59,10 +59,10 @@ function formatFileSize(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function AssetsPage({ isAdmin = true }) {
+export default function AssetsPage({ isAdmin = true, brandSlug = null }) {
     const { brandId, slug } = useParams()
-    // Identifier is either UUID (brandId) or Slug
-    const identifier = brandId || slug
+    // Identifier is either UUID (brandId), Slug from params, or passed prop
+    const identifier = brandId || slug || brandSlug
     const navigate = useNavigate()
 
     const [brand, setBrand] = useState(null)
