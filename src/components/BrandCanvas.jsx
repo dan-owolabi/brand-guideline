@@ -122,7 +122,8 @@ export default function BrandCanvas({ isAdmin = false, brandData }) {
     const [publishSuccess, setPublishSuccess] = useState(false)
     const [isPublishing, setIsPublishing] = useState(false)
     const [hoveredBlockIndex, setHoveredBlockIndex] = useState(null)
-    const [sidebarOpen, setSidebarOpen] = useState(true)
+    // Initialize sidebar closed on mobile, open on desktop
+    const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768)
     const [autoOpenMenuBlockId, setAutoOpenMenuBlockId] = useState(null)
     const [sectionToDelete, setSectionToDelete] = useState(null)
     const [addBlockMenuPos, setAddBlockMenuPos] = useState(null) // { top, left, insertIndex }

@@ -149,11 +149,11 @@ export default function Header({
 
             {/* Left Side: Back + Logo */}
             <div className="flex items-center gap-4 relative z-10">
-                {/* Sidebar Toggle (Mobile Only) - Left */}
+                {/* Sidebar Toggle - Visible on Mobile and Desktop */}
                 {onToggleSidebar && (
                     <button
                         onClick={onToggleSidebar}
-                        className={`${iconBtnClass} md:hidden mr-1`}
+                        className={`${iconBtnClass} mr-2`}
                         title="Toggle Sidebar"
                     >
                         <PanelLeft size={20} />
@@ -172,14 +172,14 @@ export default function Header({
 
                 {/* Logo - placed directly on header */}
                 <div
-                    className={`h-[30px] flex items-center relative group/logo ${isAdmin ? 'cursor-pointer' : ''}`}
+                    className={`h-6 md:h-8 flex items-center relative group/logo ${isAdmin ? 'cursor-pointer' : ''}`}
                     onClick={() => isAdmin && fileInputRef.current?.click()}
                     title={isAdmin ? "Click to upload logo (SVG or PNG)" : ""}
                 >
                     {logoUrl ? (
                         <img src={logoUrl} alt={brand?.name} className="h-full w-auto object-contain" />
                     ) : (
-                        <span className="text-xl font-bold" style={{ color: textColor }}>{brand?.name}</span>
+                        <span className="text-lg md:text-xl font-bold" style={{ color: textColor }}>{brand?.name}</span>
                     )}
 
                     {isAdmin && logoUrl && (
