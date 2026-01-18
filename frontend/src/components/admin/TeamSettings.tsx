@@ -91,8 +91,9 @@ export default function TeamSettings() {
                 .select('id, name')
                 .or(`workspace_id.eq.${currentWorkspace.id},account_id.eq.${currentWorkspace.id}`)
 
-            setMembers(memberData as WorkspaceMember[] || [])
-            setInvitations(inviteData as PendingInvitation[] || [])
+            // Cast to unknown first to avoid TypeScript strict conversion errors
+            setMembers((memberData as unknown as WorkspaceMember[]) || [])
+            setInvitations((inviteData as unknown as PendingInvitation[]) || [])
             setBrands(brandData || [])
         } catch (err) {
             console.error('Failed to load team data:', err)
@@ -351,8 +352,8 @@ export default function TeamSettings() {
                                     <button
                                         onClick={() => setInviteRole('editor')}
                                         className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${inviteRole === 'editor'
-                                                ? 'border-black bg-gray-50'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-black bg-gray-50'
+                                            : 'border-gray-200 hover:border-gray-300'
                                             }`}
                                     >
                                         <div className="flex items-center justify-center gap-2">
@@ -364,8 +365,8 @@ export default function TeamSettings() {
                                     <button
                                         onClick={() => setInviteRole('viewer')}
                                         className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${inviteRole === 'viewer'
-                                                ? 'border-black bg-gray-50'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-black bg-gray-50'
+                                            : 'border-gray-200 hover:border-gray-300'
                                             }`}
                                     >
                                         <div className="flex items-center justify-center gap-2">
@@ -494,8 +495,8 @@ export default function TeamSettings() {
                                 <button
                                     onClick={() => handleUpdateMemberRole(editingMember.id, 'editor')}
                                     className={`flex-1 py-3 px-4 rounded-lg border transition-colors ${editingMember.role === 'editor'
-                                            ? 'border-black bg-gray-50'
-                                            : 'border-gray-200 hover:border-gray-300'
+                                        ? 'border-black bg-gray-50'
+                                        : 'border-gray-200 hover:border-gray-300'
                                         }`}
                                 >
                                     <Edit3 className="w-5 h-5 mx-auto mb-1" />
@@ -504,8 +505,8 @@ export default function TeamSettings() {
                                 <button
                                     onClick={() => handleUpdateMemberRole(editingMember.id, 'viewer')}
                                     className={`flex-1 py-3 px-4 rounded-lg border transition-colors ${editingMember.role === 'viewer'
-                                            ? 'border-black bg-gray-50'
-                                            : 'border-gray-200 hover:border-gray-300'
+                                        ? 'border-black bg-gray-50'
+                                        : 'border-gray-200 hover:border-gray-300'
                                         }`}
                                 >
                                     <Eye className="w-5 h-5 mx-auto mb-1" />
