@@ -20,14 +20,20 @@ async function getBrand(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-    const brand = await getBrand(params.slug)
-    if (!brand) return { title: 'Brand Not Found' }
+    try {
+        const brand = await getBrand(params.slug)
+        if (!brand) return { title: 'Brand Not Found' }
 
-    return {
-        title: `${brand.name} - Brand Guidelines`,
-        description: `Official brand guidelines for ${brand.name}`,
-        icons: {
-            icon: brand.logo_url || '/favicon.ico'
+        return {
+            title: `${brand.name} - Brand Guidelines`,
+            description: `Official brand guidelines for ${brand.name}`,
+            icons: {
+                icon: brand.logo_url || '/favicon.ico'
+            }
+        }
+    } catch (e) {
+        return {
+            title: 'Brand Guidelines'
         }
     }
 }
