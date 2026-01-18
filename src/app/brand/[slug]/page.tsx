@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic'
+
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
