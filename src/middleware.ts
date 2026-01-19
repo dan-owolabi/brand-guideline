@@ -98,6 +98,13 @@ export function middleware(request: NextRequest) {
     const domainContext = resolveDomainContext(hostname)
 
     switch (domainContext.type) {
+        case 'app': {
+            if (pathname === '/') {
+                return NextResponse.redirect(new URL('/login', request.url))
+            }
+            break
+        }
+
         case 'marketing': {
             // Rewrite to marketing route group
             if (!pathname.startsWith('/marketing')) {
@@ -129,7 +136,10 @@ export function middleware(request: NextRequest) {
         }
     }
 
-    return NextResponse.next()
+    const response = NextResponse.next()
+    response.headers.set('x-debug-hostname', hostname)
+    response.headers.set('x-debug-context', domainContext.type)
+    return response
 }
 
 export const config = {
