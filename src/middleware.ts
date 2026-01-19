@@ -15,7 +15,8 @@ const DOMAINS = {
     MARKETING: ['guidr.space', 'www.guidr.space'],
     APP: ['app.guidr.space'],
     BASE_DOMAIN: 'guidr.space',
-    LOCAL: ['localhost', '127.0.0.1']
+    LOCAL: ['localhost', '127.0.0.1'],
+    PREVIEW: 'vercel.app'
 }
 
 export type DomainContext =
@@ -32,6 +33,11 @@ export function resolveDomainContext(hostname: string): DomainContext {
 
     // Authenticated app (app.guidr.space)
     if (DOMAINS.APP.includes(hostname)) {
+        return { type: 'app', requiresAuth: true, brand: null }
+    }
+
+    // Vercel Preview/Staging - treat as App
+    if (hostname.endsWith(DOMAINS.PREVIEW)) {
         return { type: 'app', requiresAuth: true, brand: null }
     }
 
