@@ -23,6 +23,7 @@ interface Brand {
     published: any | null
     slug: string
     account_id: string
+    workspace_id?: string // New field
     draft?: any
 }
 
@@ -338,9 +339,11 @@ export default function BrandsDashboard() {
                     primary_color: newBrand.color,
                     font_family: newBrand.font,
                     banner_url: newBrand.bannerUrl,
+
                     draft: defaultDraft,
                     published: null,
-                    account_id: currentAccount.id
+                    workspace_id: currentAccount.id,
+                    account_id: currentAccount.id // Keep for legacy until column is dropped
                 })
                 .select()
                 .single()

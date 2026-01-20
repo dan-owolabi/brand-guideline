@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 `)
                 .eq('user_id', userId)
 
-            if (error) {
+            if (error || !data || data.length === 0) {
                 // Fallback to old account_members table if workspaces don't exist yet
                 console.log('Workspaces not found, trying legacy accounts...')
                 return fetchLegacyAccounts(userId)

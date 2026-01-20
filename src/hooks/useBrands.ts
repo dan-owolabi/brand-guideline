@@ -14,6 +14,7 @@ export interface Brand {
     published?: any
     created_at?: string
     updated_at?: string
+    workspace_id?: string
 }
 
 export function useBrands() {
@@ -43,21 +44,27 @@ export function useBrands() {
         fetchBrands()
     }, [fetchBrands])
 
-    const createBrand = async (name: string) => {
+    const createBrand = async (name: string, workspaceId?: string) => {
         try {
             // Generate a simple slug from name (though typically slug might be distinct)
             // The original code didn't set slug, so maybe database handles it or it's nullable initially?
             // But typically we should probably set it. 
             // The original used: name, primary_color, navigation.
 
+            const payload: any = {
+                name,
+                primary_color: '#6366F1',
+                navigation: [],
+                // slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-') // Optional if DB generates it
+            }
+
+            if (workspaceId) {
+                payload.workspace_id = workspaceId
+            }
+
             const { data, error } = await supabase
                 .from('brands')
-                .insert([{
-                    name,
-                    primary_color: '#6366F1',
-                    navigation: [],
-                    // slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-') // Optional if DB generates it
-                }])
+                .insert([payload])
                 .select()
                 .single()
 
