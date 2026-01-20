@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 /**
  * Domain Resolution Middleware
@@ -61,7 +62,44 @@ export function resolveDomainContext(hostname: string): DomainContext {
     return { type: 'custom', requiresAuth: false, hostname }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+    // 1. Initialize Supabase and handle cookies
+    // We collect cookies to set on the final response
+    let response = NextResponse.next({
+        request: {
+            headers: request.headers,
+        },
+    })
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll()
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+                    response = NextResponse.next({
+                        request: {
+                            headers: request.headers,
+                        },
+                    })
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        response.cookies.set(name, value, options)
+                    )
+                },
+            },
+        }
+    )
+
+    // IMPORTANT: This call refreshes the auth token and updates request cookies
+    // It is required for Server Components to have the latest session
+    const { data: { user } } = await supabase.auth.getUser()
+
+
+    // 2. Domain Routing Logic
     const hostname = request.headers.get('host')?.split(':')[0] || ''
     const { pathname, searchParams } = request.nextUrl
 
@@ -71,8 +109,10 @@ export function middleware(request: NextRequest) {
         pathname.startsWith('/api') ||
         pathname.includes('.') // static files
     ) {
-        return NextResponse.next()
+        return response
     }
+
+    let finalResponse = response
 
     // For local development, check _context query param
     if (DOMAINS.LOCAL.includes(hostname)) {
@@ -81,65 +121,75 @@ export function middleware(request: NextRequest) {
         if (context === 'marketing') {
             const url = request.nextUrl.clone()
             url.pathname = `/marketing${pathname}`
-            return NextResponse.rewrite(url)
+            finalResponse = NextResponse.rewrite(url)
         }
-
-        if (context && context !== 'app') {
+        else if (context && context !== 'app') {
             // Brand context simulation
             const url = request.nextUrl.clone()
             url.pathname = `/brand/${context}${pathname === '/' ? '' : pathname}`
-            return NextResponse.rewrite(url)
+            finalResponse = NextResponse.rewrite(url)
         }
-
         // Default: app context - no rewrite needed for admin routes
-        return NextResponse.next()
+        // finalResponse remains 'response' (NextResponse.next())
+    } else {
+        const domainContext = resolveDomainContext(hostname)
+
+        switch (domainContext.type) {
+            case 'app': {
+                if (pathname === '/') {
+                    finalResponse = NextResponse.redirect(new URL('/login', request.url))
+                }
+                break
+            }
+
+            case 'marketing': {
+                // Rewrite to marketing route group
+                if (!pathname.startsWith('/marketing')) {
+                    const url = request.nextUrl.clone()
+                    url.pathname = `/marketing${pathname}`
+                    finalResponse = NextResponse.rewrite(url)
+                }
+                break
+            }
+
+            case 'brand': {
+                // Rewrite to brand route group with slug
+                if (!pathname.startsWith('/brand')) {
+                    const url = request.nextUrl.clone()
+                    url.pathname = `/brand/${domainContext.brand}${pathname === '/' ? '' : pathname}`
+                    finalResponse = NextResponse.rewrite(url)
+                }
+                break
+            }
+
+            case 'custom': {
+                // Custom domains need DB lookup - for now, pass hostname as brand identifier
+                if (!pathname.startsWith('/brand')) {
+                    const url = request.nextUrl.clone()
+                    url.pathname = `/brand/${domainContext.hostname}${pathname === '/' ? '' : pathname}`
+                    finalResponse = NextResponse.rewrite(url)
+                }
+                break
+            }
+        }
     }
 
-    const domainContext = resolveDomainContext(hostname)
+    // 3. Ensure cookies from Supabase are carried over to finalResponse
+    // If 'response' was modified by setAll, its cookies are in 'response.cookies'
+    // We need to make sure 'finalResponse' includes them.
+    // If we created a new Rewrite/Redirect response, it starts empty.
 
-    switch (domainContext.type) {
-        case 'app': {
-            if (pathname === '/') {
-                return NextResponse.redirect(new URL('/login', request.url))
-            }
-            break
-        }
-
-        case 'marketing': {
-            // Rewrite to marketing route group
-            if (!pathname.startsWith('/marketing')) {
-                const url = request.nextUrl.clone()
-                url.pathname = `/marketing${pathname}`
-                return NextResponse.rewrite(url)
-            }
-            break
-        }
-
-        case 'brand': {
-            // Rewrite to brand route group with slug
-            if (!pathname.startsWith('/brand')) {
-                const url = request.nextUrl.clone()
-                url.pathname = `/brand/${domainContext.brand}${pathname === '/' ? '' : pathname}`
-                return NextResponse.rewrite(url)
-            }
-            break
-        }
-
-        case 'custom': {
-            // Custom domains need DB lookup - for now, pass hostname as brand identifier
-            if (!pathname.startsWith('/brand')) {
-                const url = request.nextUrl.clone()
-                url.pathname = `/brand/${domainContext.hostname}${pathname === '/' ? '' : pathname}`
-                return NextResponse.rewrite(url)
-            }
-            break
-        }
+    // Copy cookies from our tracker 'response' to 'finalResponse' if they are different objects
+    if (finalResponse !== response) {
+        response.cookies.getAll().forEach(cookie => {
+            finalResponse.cookies.set(cookie.name, cookie.value, cookie)
+        })
     }
 
-    const response = NextResponse.next()
-    response.headers.set('x-debug-hostname', hostname)
-    response.headers.set('x-debug-context', domainContext.type)
-    return response
+    finalResponse.headers.set('x-debug-hostname', hostname)
+    // finalResponse.headers.set('x-debug-user', user?.email || 'none') // Optional debug
+
+    return finalResponse
 }
 
 export const config = {
