@@ -17,7 +17,7 @@ export interface Brand {
     workspace_id?: string
 }
 
-export function useBrands() {
+export function useBrands(workspaceId?: string) {
     const [brands, setBrands] = useState<Brand[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -25,10 +25,16 @@ export function useBrands() {
     const fetchBrands = useCallback(async () => {
         setLoading(true)
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('brands')
                 .select('*')
                 .order('name', { ascending: true })
+
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId)
+            }
+
+            const { data, error } = await query
 
             if (error) throw error
             setBrands(data || [])
@@ -38,7 +44,7 @@ export function useBrands() {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [workspaceId])
 
     useEffect(() => {
         fetchBrands()

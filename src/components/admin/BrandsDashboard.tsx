@@ -95,7 +95,7 @@ export default function BrandsDashboard() {
     // For now, I will comment out multi-tenancy bits if they break, preserving the UI structure.
     // Simplify auth usage
     // Simplify auth usage
-    const { user, currentAccount, accounts, createAccount, signOut } = useAuth()
+    const { user, currentAccount, accounts, createAccount, signOut, loading: authLoading } = useAuth()
     const [error, setError] = useState<string | null>(null)
     const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
     const [newAccountName, setNewAccountName] = useState('')
@@ -103,8 +103,10 @@ export default function BrandsDashboard() {
 
     // Load brands when user or account changes
     useEffect(() => {
-        loadBrands()
-    }, [user, currentAccount])
+        if (!authLoading) {
+            loadBrands()
+        }
+    }, [user, currentAccount, authLoading])
 
     // Auto-create default account if none exist (Seamless onboarding)
     // IMPORTANT: We also check currentAccount to prevent duplicate creation attempts
@@ -112,7 +114,7 @@ export default function BrandsDashboard() {
     useEffect(() => {
         const autoCreateAccount = async () => {
             // Skip if: already has accounts, already has currentAccount, loading, or already attempted
-            if (currentAccount || accounts.length > 0 || loading || isCreatingAccount || hasAttemptedCreate.current) {
+            if (currentAccount || accounts.length > 0 || loading || isCreatingAccount || hasAttemptedCreate.current || authLoading) {
                 return
             }
 
@@ -143,7 +145,7 @@ export default function BrandsDashboard() {
         }
 
         autoCreateAccount()
-    }, [user, accounts, currentAccount, loading, isCreatingAccount, createAccount])
+    }, [user, accounts, currentAccount, loading, isCreatingAccount, createAccount, authLoading])
 
     // Manual creation handler (still used if we keep the "Create" button elsewhere, but modal is removed from auto-flow)
     const handleCreateAccount = async () => {
@@ -317,7 +319,9 @@ export default function BrandsDashboard() {
             const introSection = sections.find(s => s.slug === 'introduction')
             if (introSection && introSection.blocks[0]) {
                 // @ts-ignore
-                introSection.blocks[0].content.text = `Welcome to ${newBrand.name}`
+                if (!introSection.blocks[0].data) introSection.blocks[0].data = {}
+                // @ts-ignore
+                introSection.blocks[0].data.text = `Welcome to ${newBrand.name}`
             }
 
             const slug = newBrand.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
@@ -436,7 +440,7 @@ export default function BrandsDashboard() {
         }
     }
 
-    if (loading) {
+    if (loading || authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
