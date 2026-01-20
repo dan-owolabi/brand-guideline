@@ -86,6 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 `)
                 .eq('user_id', userId)
 
+            console.log('AuthContext: fetchWorkspaces result', { data, error })
+
             if (error || !data || data.length === 0) {
                 // Fallback to old account_members table if workspaces don't exist yet
                 console.log('Workspaces not found, trying legacy accounts...')
@@ -130,6 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     )
                 `)
                 .eq('user_id', userId)
+
+            console.log('AuthContext: fetchLegacyAccounts result', { data, error })
 
             if (error) {
                 console.error('Failed to fetch accounts:', error.message)

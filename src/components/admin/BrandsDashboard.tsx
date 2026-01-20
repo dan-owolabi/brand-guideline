@@ -117,7 +117,8 @@ export default function BrandsDashboard() {
             }
 
             if (user) {
-                console.log("No accounts found. Auto-creating default workspace...")
+                console.log("BrandsDashboard: Auto-create check. No accounts found. User:", user.id)
+                console.log("BrandsDashboard: Auto-create triggered...")
                 hasAttemptedCreate.current = true
                 setIsCreatingAccount(true)
                 try {
@@ -127,9 +128,12 @@ export default function BrandsDashboard() {
                     const slug = defaultName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now()
 
                     const { error } = await createAccount(defaultName, slug)
-                    if (error) throw error
+                    if (error) {
+                        console.error("BrandsDashboard: Auto-create failed", error)
+                        throw error
+                    }
 
-                    console.log("Default workspace created.")
+                    console.log("BrandsDashboard: Default workspace created.")
                 } catch (err: any) {
                     console.error('Failed to auto-create account:', err.message)
                     // Don't show error if it's a duplicate - just means account exists
