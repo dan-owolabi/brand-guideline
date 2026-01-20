@@ -70,6 +70,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Fetch user's workspaces
     const fetchWorkspaces = async (userId: string) => {
         try {
+            console.log('AuthContext: Fetching workspaces for user', userId)
+
+            // Try RPC first (more efficient and bypasses RLS recursion)
+            const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_workspaces')
+
+            if (!rpcError && rpcData) {
+                console.log('AuthContext: RPC fetch success', rpcData)
+                const mappedWorkspaces = rpcData.map((w: any) => ({
+                    id: w.workspace_id,
+                    name: w.workspace_name,
+                    slug: w.workspace_slug,
+                    logo_url: null, // RPC doesn't return logo yet
+                    owner_id: w.is_owner ? userId : 'unknown', // Best guess if owner
+                    role: w.role,
+                    can_invite: w.role === 'owner', // simplified
+                    brand_access_type: 'all' // simplified
+                })) as Workspace[]
+
+                setWorkspaces(mappedWorkspaces)
+
+                // Set current workspace if not set
+                if (mappedWorkspaces.length > 0 && !currentWorkspace) {
+                    const lastActive = localStorage.getItem('currentWorkspaceId')
+                    const match = mappedWorkspaces.find((w) => w.id === lastActive)
+                    setCurrentWorkspace(match || mappedWorkspaces[0])
+                }
+
+                return
+            } else {
+                console.log('AuthContext: RPC failed or not found, falling back to table query', rpcError)
+            }
+
             const { data, error } = await supabase
                 .from('workspace_members')
                 .select(`
