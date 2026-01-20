@@ -45,6 +45,7 @@ interface AuthContextType {
     accounts: Account[]
     currentAccount: Account | null
     loading: boolean
+    workspacesLoading: boolean
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>
     signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>
     signInWithOAuth: (provider: 'google') => Promise<{ error: Error | null }>
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([])
     const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
     const [loading, setLoading] = useState(true)
+    const [workspacesLoading, setWorkspacesLoading] = useState(true)
 
     // Legacy state (maps to workspaces)
     const accounts = workspaces as unknown as Account[]
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Fetch user's workspaces
     const fetchWorkspaces = async (userId: string) => {
+        setWorkspacesLoading(true)
         try {
             console.log('AuthContext: Fetching workspaces for user', userId)
 
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setCurrentWorkspace(null)
                 }
 
+                setWorkspacesLoading(false)
                 return
             } else {
                 console.log('AuthContext: RPC failed or not found, falling back to table query', rpcError)
@@ -130,7 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (error || !data || data.length === 0) {
                 // Fallback to old account_members table if workspaces don't exist yet
                 console.log('Workspaces not found, trying legacy accounts...')
-                return fetchLegacyAccounts(userId)
+                // Fallback to old account_members table if workspaces don't exist yet
+                console.log('Workspaces not found, trying legacy accounts...')
+                await fetchLegacyAccounts(userId)
+                setWorkspacesLoading(false)
+                return
             }
 
             const userWorkspaces = (data || [])
@@ -144,13 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setWorkspaces(userWorkspaces)
 
-            // Set current workspace (first one or from localStorage)
-            const savedWorkspaceId = localStorage.getItem('currentWorkspaceId')
-            const savedWorkspace = userWorkspaces.find(w => w.id === savedWorkspaceId)
-            setCurrentWorkspace(savedWorkspace || userWorkspaces[0] || null)
+            setWorkspaces(userWorkspaces)
+            setWorkspacesLoading(false)
         } catch (err) {
             console.error('Failed to fetch workspaces:', err)
             setWorkspaces([])
+            setWorkspacesLoading(false)
         }
     }
 
@@ -191,15 +198,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setWorkspaces(userAccounts)
 
-            // Set current workspace
-            const savedId = localStorage.getItem('currentWorkspaceId') || localStorage.getItem('currentAccountId')
-            const saved = userAccounts.find(a => a.id === savedId)
-            setCurrentWorkspace(saved || userAccounts[0] || null)
+            setWorkspaces(userAccounts)
+            setWorkspacesLoading(false)
         } catch (err) {
             console.error('Failed to fetch accounts:', err)
             setWorkspaces([])
         }
     }
+
+    // USER REQUESTED: Reactive Workspace Restoration
+    useEffect(() => {
+        if (workspacesLoading) return
+        if (!workspaces || workspaces.length === 0) return
+
+        const savedWorkspaceId = localStorage.getItem("currentWorkspaceId")
+
+        if (savedWorkspaceId) {
+            const matched = workspaces.find(w => w.id === savedWorkspaceId)
+            if (matched) {
+                console.log('AuthContext: Restoring workspace from storage:', matched.name)
+                setCurrentWorkspace(matched)
+                return
+            }
+        }
+
+        // Fallback: pick first workspace
+        console.log('AuthContext: Defaulting to first workspace:', workspaces[0].name)
+        setCurrentWorkspace(workspaces[0])
+        localStorage.setItem("currentWorkspaceId", workspaces[0].id)
+    }, [workspacesLoading, workspaces])
 
     useEffect(() => {
         // Get initial session
@@ -372,6 +399,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             accounts,
             currentAccount,
             loading,
+            workspacesLoading,
             signIn,
             signUp,
             signInWithOAuth,

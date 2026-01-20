@@ -96,7 +96,7 @@ export default function BrandsDashboard() {
     // Simplify auth usage
     // Simplify auth usage
     // Simplify auth usage
-    const { user, currentAccount, accounts, createAccount, signOut, loading: authLoading } = useAuth()
+    const { user, currentAccount, accounts, createAccount, signOut, loading: authLoading, workspacesLoading } = useAuth()
     const [error, setError] = useState<string | null>(null)
     const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
     const [newAccountName, setNewAccountName] = useState('')
@@ -144,7 +144,7 @@ export default function BrandsDashboard() {
         }
 
         // If auth is still loading, do nothing
-        if (authLoading) return
+        if (authLoading || workspacesLoading) return
 
         // If we have a user but no workspace/account yet
         if (!currentAccount) {
@@ -405,7 +405,7 @@ export default function BrandsDashboard() {
         }
     }
 
-    if (loading || authLoading) {
+    if (loading || authLoading || workspacesLoading || !currentAccount) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
