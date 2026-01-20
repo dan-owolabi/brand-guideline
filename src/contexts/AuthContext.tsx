@@ -63,17 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        console.log('AuthContext: loading state changed:', loading)
-    }, [loading])
-
     // Legacy state (maps to workspaces)
     const accounts = workspaces as unknown as Account[]
     const currentAccount = currentWorkspace as unknown as Account | null
 
     // Fetch user's workspaces
     const fetchWorkspaces = async (userId: string) => {
-        console.log('AuthContext: fetchWorkspaces started', userId)
         try {
             const { data, error } = await supabase
                 .from('workspace_members')
@@ -118,11 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
-
-
     // Legacy: Fetch accounts (fallback)
     const fetchLegacyAccounts = async (userId: string) => {
-        console.log('AuthContext: fetchLegacyAccounts started')
         try {
             const { data, error } = await supabase
                 .from('account_members')
@@ -167,46 +159,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     useEffect(() => {
-        console.log('AuthContext: Initializing...')
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
-            console.log('AuthContext: getSession result', session?.user?.email)
             setSession(session)
             setUser(session?.user ?? null)
             if (session?.user) {
-                console.log('AuthContext: User found, fetching workspaces...')
-                fetchWorkspaces(session.user.id).then(() => {
-                    console.log('AuthContext: fetchWorkspaces done (initial)')
-                    setLoading(false)
-                })
+                fetchWorkspaces(session.user.id).then(() => setLoading(false))
             } else {
-                console.log('AuthContext: No user, stopping loading')
                 setLoading(false)
-            }
-        }).catch(err => {
-            console.error('AuthContext: getSession error', err)
-            // Don't stop loading immediately on error, let onAuthStateChange or fallback handle it
-            // specifically for AbortError which might be transient
-            if (err.name !== 'AbortError') {
-                // For other errors, we might want to fail safe
             }
         })
 
-        // Safety fallback: ensure loading stops eventually
-        const safetyTimer = setTimeout(() => {
-            setLoading((prev) => {
-                if (prev) {
-                    console.warn('AuthContext: Safety timer triggered, stopping loading')
-                    return false
-                }
-                return prev
-            })
-        }, 5000)
-
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                console.log('AuthContext: onAuthStateChange', event, session?.user?.email)
+            async (_event, session) => {
                 setSession(session)
                 setUser(session?.user ?? null)
                 if (session?.user) {
@@ -215,15 +181,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setWorkspaces([])
                     setCurrentWorkspace(null)
                 }
-                console.log('AuthContext: onAuthStateChange done, stopping loading')
                 setLoading(false)
             }
         )
 
-        return () => {
-            subscription.unsubscribe()
-            clearTimeout(safetyTimer)
-        }
+        return () => subscription.unsubscribe()
     }, [])
 
     const signIn = async (email: string, password: string) => {

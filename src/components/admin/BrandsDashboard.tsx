@@ -95,7 +95,7 @@ export default function BrandsDashboard() {
     // For now, I will comment out multi-tenancy bits if they break, preserving the UI structure.
     // Simplify auth usage
     // Simplify auth usage
-    const { user, currentAccount, accounts, createAccount, signOut, loading: authLoading } = useAuth()
+    const { user, currentAccount, accounts, createAccount, signOut } = useAuth()
     const [error, setError] = useState<string | null>(null)
     const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
     const [newAccountName, setNewAccountName] = useState('')
@@ -103,10 +103,8 @@ export default function BrandsDashboard() {
 
     // Load brands when user or account changes
     useEffect(() => {
-        if (!authLoading) {
-            loadBrands()
-        }
-    }, [user, currentAccount, authLoading])
+        loadBrands()
+    }, [user, currentAccount])
 
     // Auto-create default account if none exist (Seamless onboarding)
     // IMPORTANT: We also check currentAccount to prevent duplicate creation attempts
@@ -114,7 +112,7 @@ export default function BrandsDashboard() {
     useEffect(() => {
         const autoCreateAccount = async () => {
             // Skip if: already has accounts, already has currentAccount, loading, or already attempted
-            if (currentAccount || accounts.length > 0 || loading || isCreatingAccount || hasAttemptedCreate.current || authLoading) {
+            if (currentAccount || accounts.length > 0 || loading || isCreatingAccount || hasAttemptedCreate.current) {
                 return
             }
 
@@ -145,7 +143,7 @@ export default function BrandsDashboard() {
         }
 
         autoCreateAccount()
-    }, [user, accounts, currentAccount, loading, isCreatingAccount, createAccount, authLoading])
+    }, [user, accounts, currentAccount, loading, isCreatingAccount, createAccount])
 
     // Manual creation handler (still used if we keep the "Create" button elsewhere, but modal is removed from auto-flow)
     const handleCreateAccount = async () => {
@@ -440,8 +438,7 @@ export default function BrandsDashboard() {
         }
     }
 
-    if (loading || authLoading) {
-        console.log('BrandsDashboard: displaying spinner. Local loading:', loading, 'Auth loading:', authLoading)
+    if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
