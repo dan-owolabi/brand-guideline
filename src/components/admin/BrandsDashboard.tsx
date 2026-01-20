@@ -107,47 +107,16 @@ export default function BrandsDashboard() {
     }, [user, currentAccount])
 
     // Auto-create default account if none exist (Seamless onboarding)
-    // IMPORTANT: We also check currentAccount to prevent duplicate creation attempts
+    // DISABLED: Logic was masking real issue (workspaces exist but weren't selected)
+    /*
     const hasAttemptedCreate = useRef(false)
     useEffect(() => {
         const autoCreateAccount = async () => {
-            // Skip if: already has accounts, already has currentAccount, loading, or already attempted
-            if (currentAccount || accounts.length > 0 || loading || isCreatingAccount || hasAttemptedCreate.current) {
-                return
-            }
-
-            if (user) {
-                console.log("BrandsDashboard: Auto-create check. No accounts found. User:", user.id)
-                console.log("BrandsDashboard: Auto-create triggered...")
-                hasAttemptedCreate.current = true
-                setIsCreatingAccount(true)
-                try {
-                    // Extract name from email or use default
-                    const defaultName = user.email ? `${user.email.split('@')[0]}'s Workspace` : 'My Workspace'
-                    // Add timestamp to slug to avoid duplicates
-                    const slug = defaultName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now()
-
-                    const { error } = await createAccount(defaultName, slug)
-                    if (error) {
-                        console.error("BrandsDashboard: Auto-create failed", error)
-                        throw error
-                    }
-
-                    console.log("BrandsDashboard: Default workspace created.")
-                } catch (err: any) {
-                    console.error('Failed to auto-create account:', err.message)
-                    // Don't show error if it's a duplicate - just means account exists
-                    if (!err.message?.includes('duplicate')) {
-                        setError("Failed to initialize workspace. Please try refreshing.")
-                    }
-                } finally {
-                    setIsCreatingAccount(false)
-                }
-            }
+            // ... (disabled)
         }
-
         autoCreateAccount()
     }, [user, accounts, currentAccount, loading, isCreatingAccount, createAccount])
+    */
 
     // Manual creation handler (still used if we keep the "Create" button elsewhere, but modal is removed from auto-flow)
     const handleCreateAccount = async () => {
@@ -171,9 +140,11 @@ export default function BrandsDashboard() {
             return
         }
 
-        // If we have a user but no workspace/account yet, wait for auto-creation
+        // If we have a user but no workspace/account yet, wait
         if (!currentAccount) {
             console.log("Waiting for workspace assignment...")
+            // Don't set loading false yet if we think we should have one
+            if (accounts.length > 0) return
             setLoading(false)
             return
         }
@@ -181,24 +152,12 @@ export default function BrandsDashboard() {
         console.log("Loading brands for workspace:", currentAccount.id)
 
         try {
-            // Try workspace_id first (new system), then account_id (legacy)
-            let { data, error } = await supabase
+            // STRICT QUERY: Only fetch for the active workspace
+            const { data, error } = await supabase
                 .from('brands')
                 .select('*')
                 .eq('workspace_id', currentAccount.id)
                 .order('created_at', { ascending: false })
-
-            // Fallback to account_id if no results with workspace_id
-            if ((!data || data.length === 0) && !error) {
-                const legacyResult = await supabase
-                    .from('brands')
-                    .select('*')
-                    .eq('account_id', currentAccount.id)
-                    .order('created_at', { ascending: false })
-
-                data = legacyResult.data
-                error = legacyResult.error
-            }
 
             if (error) {
                 console.error("Supabase select error:", error)

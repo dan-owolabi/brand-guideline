@@ -90,11 +90,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 setWorkspaces(mappedWorkspaces)
 
-                // Set current workspace if not set
-                if (mappedWorkspaces.length > 0 && !currentWorkspace) {
-                    const lastActive = localStorage.getItem('currentWorkspaceId')
-                    const match = mappedWorkspaces.find((w) => w.id === lastActive)
-                    setCurrentWorkspace(match || mappedWorkspaces[0])
+                // FORCE: Always set active workspace if available
+                if (mappedWorkspaces.length > 0) {
+                    const savedId = localStorage.getItem('currentWorkspaceId')
+                    const saved = mappedWorkspaces.find((w) => w.id === savedId)
+                    const nextWorkspace = saved || mappedWorkspaces[0]
+
+                    console.log('AuthContext: Setting active workspace to:', nextWorkspace.name)
+                    setCurrentWorkspace(nextWorkspace)
+                    localStorage.setItem('currentWorkspaceId', nextWorkspace.id)
+                } else {
+                    console.log('AuthContext: No workspaces found for user.')
+                    setCurrentWorkspace(null)
                 }
 
                 return
