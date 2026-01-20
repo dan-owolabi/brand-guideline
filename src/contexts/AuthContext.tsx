@@ -185,9 +185,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }).catch(err => {
             console.error('AuthContext: getSession error', err)
-            setLoading(false)
+            // Don't stop loading immediately on error, let onAuthStateChange or fallback handle it
+            // specifically for AbortError which might be transient
+            if (err.name !== 'AbortError') {
+                // For other errors, we might want to fail safe
+            }
         })
 
+        // Safety fallback: ensure loading stops eventually
+        const safetyTimer = setTimeout(() => {
+            setLoading((prev) => {
+                if (prev) {
+                    console.warn('AuthContext: Safety timer triggered, stopping loading')
+                    return false
+                }
+                return prev
+            })
+        }, 5000)
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -206,7 +220,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         )
 
-        return () => subscription.unsubscribe()
+        return () => {
+            subscription.unsubscribe()
+            clearTimeout(safetyTimer)
+        }
     }, [])
 
     const signIn = async (email: string, password: string) => {
