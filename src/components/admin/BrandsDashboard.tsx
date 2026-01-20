@@ -103,11 +103,28 @@ export default function BrandsDashboard() {
     const [isCreatingAccount, setIsCreatingAccount] = useState(false)
 
     // Load brands when user or account changes
+    // CORRECT - Fix Render Deadlock & Logic Loop
     useEffect(() => {
-        if (!authLoading) {
-            loadBrands()
+        // 1. Wait for global auth/workspace init
+        if (authLoading || workspacesLoading) return
+
+        // 2. If no workspace, we can't load brands, so stop loading
+        if (!currentAccount) {
+            setLoading(false)
+            return
         }
-    }, [user, currentAccount, authLoading])
+
+        // 3. We have a workspace, fetch brands
+        loadBrands()
+    }, [currentAccount, authLoading, workspacesLoading])
+
+    // Debug State for User
+    console.log({
+        authLoading,
+        workspacesLoading,
+        currentWorkspace: currentAccount,
+        brandsLoading: loading
+    })
 
     // Auto-create default account if none exist (Seamless onboarding)
     // DISABLED: Logic was masking real issue (workspaces exist but weren't selected)
@@ -405,7 +422,7 @@ export default function BrandsDashboard() {
         }
     }
 
-    if (loading || authLoading || workspacesLoading || !currentAccount) {
+    if (authLoading || workspacesLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
