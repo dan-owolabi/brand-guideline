@@ -95,7 +95,8 @@ export default function BrandsDashboard() {
     // For now, I will comment out multi-tenancy bits if they break, preserving the UI structure.
     // Simplify auth usage
     // Simplify auth usage
-    const { user, currentAccount, accounts, createAccount, signOut } = useAuth()
+    // Simplify auth usage
+    const { user, currentAccount, accounts, createAccount, signOut, loading: authLoading } = useAuth()
     const [error, setError] = useState<string | null>(null)
     const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
     const [newAccountName, setNewAccountName] = useState('')
@@ -103,8 +104,10 @@ export default function BrandsDashboard() {
 
     // Load brands when user or account changes
     useEffect(() => {
-        loadBrands()
-    }, [user, currentAccount])
+        if (!authLoading) {
+            loadBrands()
+        }
+    }, [user, currentAccount, authLoading])
 
     // Auto-create default account if none exist (Seamless onboarding)
     // DISABLED: Logic was masking real issue (workspaces exist but weren't selected)
@@ -140,11 +143,12 @@ export default function BrandsDashboard() {
             return
         }
 
-        // If we have a user but no workspace/account yet, wait
+        // If auth is still loading, do nothing
+        if (authLoading) return
+
+        // If we have a user but no workspace/account yet
         if (!currentAccount) {
-            console.log("Waiting for workspace assignment...")
-            // Don't set loading false yet if we think we should have one
-            if (accounts.length > 0) return
+            console.log("BrandsDashboard: No current workspace set.")
             setLoading(false)
             return
         }
@@ -401,7 +405,7 @@ export default function BrandsDashboard() {
         }
     }
 
-    if (loading) {
+    if (loading || authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
