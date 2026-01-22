@@ -75,10 +75,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             console.log('AuthContext: Fetching workspaces for user', userId)
 
-            // Try RPC first (more efficient and bypasses RLS recursion)
+            // Try RPC first with timeout (more efficient and bypasses RLS recursion)
             let rpcSuccess = false
             try {
-                const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_workspaces')
+                // Add timeout to prevent indefinite hanging
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('RPC timeout')), 5000)
+                )
+                const rpcPromise = supabase.rpc('get_user_workspaces')
+
+                const { data: rpcData, error: rpcError } = await Promise.race([
+                    rpcPromise,
+                    timeoutPromise
+                ]) as any
+
                 console.log('AuthContext: RPC result', { rpcData, rpcError })
 
                 if (!rpcError && rpcData && Array.isArray(rpcData)) {
@@ -100,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     console.log('AuthContext: RPC failed or returned empty', rpcError?.message)
                 }
             } catch (rpcErr) {
-                console.log('AuthContext: RPC threw error, falling back', rpcErr)
+                console.log('AuthContext: RPC threw error or timed out, falling back', rpcErr)
             }
 
             // Only try fallbacks if RPC didn't succeed
