@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         id: w.workspace_id,
                         name: w.workspace_name,
                         slug: w.workspace_slug,
-                        logo_url: null,
+                        logo_url: undefined,
                         owner_id: w.is_owner ? userId : 'unknown',
                         role: w.role,
                         can_invite: w.role === 'owner',
