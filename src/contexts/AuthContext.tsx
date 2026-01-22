@@ -76,43 +76,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.log('AuthContext: Fetching workspaces for user', userId)
 
             // Try RPC first (more efficient and bypasses RLS recursion)
-            const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_workspaces')
+            let rpcSuccess = false
+            try {
+                const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_workspaces')
+                console.log('AuthContext: RPC result', { rpcData, rpcError })
 
-            if (!rpcError && rpcData) {
-                console.log('AuthContext: RPC fetch success', rpcData)
-                const mappedWorkspaces = rpcData.map((w: any) => ({
-                    id: w.workspace_id,
-                    name: w.workspace_name,
-                    slug: w.workspace_slug,
-                    logo_url: null, // RPC doesn't return logo yet
-                    owner_id: w.is_owner ? userId : 'unknown', // Best guess if owner
-                    role: w.role,
-                    can_invite: w.role === 'owner', // simplified
-                    brand_access_type: 'all' // simplified
-                })) as Workspace[]
+                if (!rpcError && rpcData && Array.isArray(rpcData)) {
+                    console.log('AuthContext: RPC fetch success', rpcData.length, 'workspaces')
+                    const mappedWorkspaces = rpcData.map((w: any) => ({
+                        id: w.workspace_id,
+                        name: w.workspace_name,
+                        slug: w.workspace_slug,
+                        logo_url: null,
+                        owner_id: w.is_owner ? userId : 'unknown',
+                        role: w.role,
+                        can_invite: w.role === 'owner',
+                        brand_access_type: 'all'
+                    })) as Workspace[]
 
-                setWorkspaces(mappedWorkspaces)
-
-                // FORCE: Always set active workspace if available
-                if (mappedWorkspaces.length > 0) {
-                    const savedId = localStorage.getItem('currentWorkspaceId')
-                    const saved = mappedWorkspaces.find((w) => w.id === savedId)
-                    const nextWorkspace = saved || mappedWorkspaces[0]
-
-                    console.log('AuthContext: Setting active workspace to:', nextWorkspace.name)
-                    setCurrentWorkspace(nextWorkspace)
-                    localStorage.setItem('currentWorkspaceId', nextWorkspace.id)
+                    setWorkspaces(mappedWorkspaces)
+                    rpcSuccess = true
                 } else {
-                    console.log('AuthContext: No workspaces found for user.')
-                    setCurrentWorkspace(null)
+                    console.log('AuthContext: RPC failed or returned empty', rpcError?.message)
                 }
-
-                setWorkspacesLoading(false)
-                return
-            } else {
-                console.log('AuthContext: RPC failed or not found, falling back to table query', rpcError)
+            } catch (rpcErr) {
+                console.log('AuthContext: RPC threw error, falling back', rpcErr)
             }
 
+            // Only try fallbacks if RPC didn't succeed
+            if (rpcSuccess) {
+                return
+            }
+
+            // Fallback: Try workspace_members table
+            console.log('AuthContext: Trying workspace_members table...')
             const { data, error } = await supabase
                 .from('workspace_members')
                 .select(`
@@ -129,34 +126,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 `)
                 .eq('user_id', userId)
 
-            console.log('AuthContext: fetchWorkspaces result', { data, error })
+            console.log('AuthContext: workspace_members result', { count: data?.length, error: error?.message })
 
-            if (error || !data || data.length === 0) {
-                // Fallback to old account_members table if workspaces don't exist yet
-                console.log('Workspaces not found, trying legacy accounts...')
-                // Fallback to old account_members table if workspaces don't exist yet
-                console.log('Workspaces not found, trying legacy accounts...')
-                await fetchLegacyAccounts(userId)
-                setWorkspacesLoading(false)
+            if (!error && data && data.length > 0) {
+                const userWorkspaces = data
+                    .filter(m => m.workspace)
+                    .map(m => ({
+                        ...(m.workspace as any),
+                        role: m.role,
+                        can_invite: m.can_invite,
+                        brand_access_type: m.brand_access_type
+                    })) as Workspace[]
+
+                setWorkspaces(userWorkspaces)
                 return
             }
 
-            const userWorkspaces = (data || [])
-                .filter(m => m.workspace)
-                .map(m => ({
-                    ...(m.workspace as any),
-                    role: m.role,
-                    can_invite: m.can_invite,
-                    brand_access_type: m.brand_access_type
-                })) as Workspace[]
+            // Final fallback: legacy accounts
+            console.log('AuthContext: Trying legacy accounts...')
+            await fetchLegacyAccounts(userId)
 
-            setWorkspaces(userWorkspaces)
-
-            setWorkspaces(userWorkspaces)
-            setWorkspacesLoading(false)
         } catch (err) {
-            console.error('Failed to fetch workspaces:', err)
+            console.error('AuthContext: fetchWorkspaces failed:', err)
             setWorkspaces([])
+        } finally {
+            // ALWAYS set loading to false
+            console.log('AuthContext: fetchWorkspaces complete, setting workspacesLoading=false')
             setWorkspacesLoading(false)
         }
     }
@@ -184,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (error) {
                 console.error('Failed to fetch accounts:', error.message)
                 setWorkspaces([])
+                setWorkspacesLoading(false)
                 return
             }
 
@@ -197,12 +193,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 })) as Workspace[]
 
             setWorkspaces(userAccounts)
-
-            setWorkspaces(userAccounts)
             setWorkspacesLoading(false)
         } catch (err) {
             console.error('Failed to fetch accounts:', err)
             setWorkspaces([])
+            setWorkspacesLoading(false)
         }
     }
 
@@ -229,17 +224,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [workspacesLoading, workspaces])
 
     useEffect(() => {
+        console.log('AuthContext: Initializing auth...')
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
+            console.log('AuthContext: getSession result', { hasSession: !!session, userId: session?.user?.id })
             setSession(session)
             setUser(session?.user ?? null)
             if (session?.user) {
-                fetchWorkspaces(session.user.id).then(() => setLoading(false))
+                console.log('AuthContext: User found, calling fetchWorkspaces...')
+                fetchWorkspaces(session.user.id).then(() => {
+                    console.log('AuthContext: fetchWorkspaces promise resolved, setting loading=false')
+                    setLoading(false)
+                })
             } else {
+                console.log('AuthContext: No session, setting loading=false')
                 setLoading(false)
+                setWorkspacesLoading(false) // Also set workspacesLoading false if no user
             }
-        }).catch(() => {
+        }).catch((err) => {
+            console.error('AuthContext: getSession failed', err)
             setLoading(false)
+            setWorkspacesLoading(false)
         })
 
         // Listen for auth changes

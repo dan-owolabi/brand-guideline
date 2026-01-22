@@ -44,7 +44,7 @@ const COLOR_PRESETS = [
 export default function BrandsDashboard() {
     const router = useRouter()
     const [brands, setBrands] = useState<Brand[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false) // Start false - we're not loading yet
     const [showNewModal, setShowNewModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
     const [editingBrandId, setEditingBrandId] = useState<string | null>(null)
