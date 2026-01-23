@@ -32,6 +32,10 @@ export default function AdminLayoutWrapper({ brandId, children }: AdminLayoutWra
     const pathname = usePathname()
     const router = useRouter()
 
+    // Check if we're on a builder page (has a slug after /admin/brand/[id]/)
+    // Builder pages like /admin/brand/abc/introduction should hide the sidebar
+    const isBuilderPage = pathname && pathname.match(/\/admin\/brand\/[^/]+\/[^/]+/)
+
     useEffect(() => {
         if (!brandId) return
 
@@ -74,6 +78,15 @@ export default function AdminLayoutWrapper({ brandId, children }: AdminLayoutWra
                     Back to Dashboard
                 </Button>
             </div>
+        )
+    }
+
+    // For builder pages, skip the sidebar and just wrap with AdminProvider
+    if (isBuilderPage) {
+        return (
+            <AdminProvider value={{ currentBrand, loading, isSidebarOpen, toggleSidebar }}>
+                {children}
+            </AdminProvider>
         )
     }
 
