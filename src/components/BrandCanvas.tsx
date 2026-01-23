@@ -345,9 +345,6 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
                     className={`fixed md:relative top-16 md:top-0 bottom-0 z-40 w-64 bg-gray-50/80 border-r border-gray-200/50 backdrop-blur-xl transition-all duration-300 ease-in-out transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:hidden'} md:translate-x-0 ${!sidebarOpen && 'md:!w-0 md:!border-none md:overflow-hidden'}`}
                 >
                     <div className="h-full flex flex-col pt-8 px-4 pb-4 w-64">
-                        <div className="flex justify-between items-center mb-4 px-2">
-                            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sections</h3>
-                        </div>
 
                         <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide">
                             <DndContext
