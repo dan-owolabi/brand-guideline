@@ -200,6 +200,22 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
             }))
     }, [activeSection])
 
+    // Helper for selection state - must be before useEffect
+    const hasSelection = selectedBlockIds.size > 0
+
+    // Handle click outside to clear selection - must be before early returns
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent<any> | globalThis.MouseEvent) => {
+            if (!hasSelection) return
+            const target = e.target as HTMLElement
+            if (!target.closest('.block-content') && !target.closest('.control-area')) {
+                setSelectedBlockIds(new Set())
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [hasSelection])
+
     if (loading && !data) {
         return (
             <div className="flex h-screen items-center justify-center">
@@ -299,8 +315,7 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
         setSectionToDelete(null)
     }
 
-    // Helper functions for block manipulation (simplified for brevity)
-    const hasSelection = selectedBlockIds.size > 0
+    // Helper function for block selection toggle
     const toggleBlockSelection = (blockId: string, multi: boolean) => {
         const newSet = new Set(multi ? selectedBlockIds : [])
         if (newSet.has(blockId)) newSet.delete(blockId)
@@ -308,19 +323,6 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
         setSelectedBlockIds(newSet)
         setLastSelectedBlockId(blockId)
     }
-
-    // Handle click outside to clear selection
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent<any> | globalThis.MouseEvent) => {
-            if (!hasSelection) return
-            const target = e.target as HTMLElement
-            if (!target.closest('.block-content') && !target.closest('.control-area')) {
-                setSelectedBlockIds(new Set())
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [hasSelection])
 
 
     return (
