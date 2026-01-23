@@ -13,6 +13,7 @@ import { Plus, Loader2, ChevronLeft, ChevronRight, Trash2, GripVertical, Copy, X
 import BlockTypeSwitcher from './editor/BlockTypeSwitcher'
 import FloatingTextToolbar from './editor/FloatingTextToolbar'
 import SlashMenu from './editor/SlashMenu'
+import AddBlockButton from './editor/AddBlockButton'
 import {
     DndContext,
     closestCenter,
@@ -508,6 +509,20 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
                                                     </React.Fragment>
                                                 )
                                             })}
+
+                                            {/* Add Block Button */}
+                                            <div className="pt-4">
+                                                <AddBlockButton
+                                                    onAdd={(newBlock) => {
+                                                        const blockData = {
+                                                            type: newBlock.type,
+                                                            data: newBlock.content
+                                                        }
+                                                        addBlock(activeSection.id, blockData)
+                                                    }}
+                                                    isVisible={true}
+                                                />
+                                            </div>
                                         </div>
                                     </SortableContext>
                                 </DndContext>

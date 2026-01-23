@@ -34,7 +34,13 @@ export default function AdminLayoutWrapper({ brandId, children }: AdminLayoutWra
 
     // Check if we're on a builder page (has a slug after /admin/brand/[id]/)
     // Builder pages like /admin/brand/abc/introduction should hide the sidebar
-    const isBuilderPage = pathname && pathname.match(/\/admin\/brand\/[^/]+\/[^/]+/)
+    // But exclude system routes: assets, settings, pages which should show the sidebar
+    const isSystemRoute = pathname && (
+        pathname.includes('/assets') ||
+        pathname.includes('/settings') ||
+        pathname.includes('/pages')
+    )
+    const isBuilderPage = !isSystemRoute && pathname && pathname.match(/\/admin\/brand\/[^/]+\/[^/]+/)
 
     useEffect(() => {
         if (!brandId) return
