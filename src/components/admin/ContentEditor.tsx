@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAdminContext } from '@/components/admin/AdminContext'
 import { useBrandEditor } from '@/hooks/useBrandEditor'
 import BrandRenderer from '@/components/BrandRenderer'
@@ -35,9 +35,11 @@ export default function ContentEditor() {
     const [publishSuccess, setPublishSuccess] = useState(false)
 
     // Auto-select first section
-    if (!activeSlug && draft?.sections?.length && draft.sections.length > 0) {
-        setActiveSlug(draft.sections[0].slug)
-    }
+    useEffect(() => {
+        if (!activeSlug && draft?.sections?.length && draft.sections.length > 0) {
+            setActiveSlug(draft.sections[0].slug)
+        }
+    }, [activeSlug, draft?.sections])
 
     const handlePublish = async () => {
         try {
