@@ -210,9 +210,53 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
             .map(b => ({
                 id: b.id,
                 text: b.data?.text || (b.data as any)?.content?.text,
-                variant: b.data?.variant || (b.data as any)?.content?.variant
             }))
-    }, [activeSection])
+    }, [activeSection?.blocks])
+
+    // Group sections for sidebar hierarchy
+    const groupedSections = useMemo(() => {
+        const groups: { [key: string]: BrandSection[] } = {
+            'Welcome': [],
+            'Writing': [],
+            'Design': [],
+            'Ungrouped': []
+        }
+
+        const titleToGroupMap: Record<string, string> = {
+            'introduction': 'Welcome',
+            'intro': 'Welcome',
+            'welcome': 'Welcome',
+            'tone of voice': 'Writing',
+            'writing guide': 'Writing',
+            'writing': 'Writing',
+            'localization': 'Writing',
+            'logos': 'Design',
+            'colors': 'Design',
+            'typography': 'Design',
+            'photography': 'Design',
+            'applications': 'Design',
+            'illustration': 'Design',
+            'star': 'Design',
+            'our logo and star': 'Design',
+            'logo positioning': 'Design',
+            'logo safe space': 'Design',
+            'other trustpilot logos': 'Design',
+            'do’s and don’ts': 'Design'
+        }
+
+        sections.forEach(s => {
+            let groupName = s.group
+            if (!groupName) {
+                const lowerTitle = s.title.toLowerCase()
+                groupName = titleToGroupMap[lowerTitle] || 'Ungrouped'
+            }
+
+            if (!groups[groupName]) groups[groupName] = []
+            groups[groupName].push(s)
+        })
+
+        return groups
+    }, [sections])
 
     // Helper for selection state - must be before useEffect
     const hasSelection = selectedBlockIds.size > 0
@@ -372,23 +416,37 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
                                     strategy={verticalListSortingStrategy}
                                     disabled={!isAdmin}
                                 >
-                                    <ul className="space-y-1">
-                                        {sections.map((section) => (
-                                            <SidebarSectionItem
-                                                key={section.id}
-                                                section={section}
-                                                isAdmin={isAdmin}
-                                                activeSectionId={activeSection?.id}
-                                                brandId={brandMetadata.id}
-                                                brandSlug={brandMetadata.slug}
-                                                setSectionToDelete={setSectionToDelete}
-                                                subheadings={activeSection?.id === section.id ? subheadings : []}
-                                                sectionsCount={sections.length}
-                                                basePath={isAdmin ? `/admin/brand/${brandMetadata.id}` : basePath}
-                                                onSelectSection={handleSelectSection}
-                                            />
-                                        ))}
-                                    </ul>
+                                    <div className="space-y-6 pb-4">
+                                        {['Welcome', 'Writing', 'Design', 'Ungrouped'].map(groupName => {
+                                            const groupSections = groupedSections[groupName as keyof typeof groupedSections] || []
+                                            if (groupSections.length === 0) return null
+
+                                            return (
+                                                <div key={groupName}>
+                                                    {groupName !== 'Ungrouped' && (
+                                                        <h3 className="mb-2 px-2 text-sm font-bold text-gray-900 select-none">{groupName}</h3>
+                                                    )}
+                                                    <ul className="space-y-1">
+                                                        {groupSections.map((section) => (
+                                                            <SidebarSectionItem
+                                                                key={section.id}
+                                                                section={section}
+                                                                isAdmin={isAdmin}
+                                                                activeSectionId={activeSection?.id}
+                                                                brandId={brandMetadata.id}
+                                                                brandSlug={brandMetadata.slug}
+                                                                setSectionToDelete={setSectionToDelete}
+                                                                subheadings={activeSection?.id === section.id ? subheadings : []}
+                                                                sectionsCount={sections.length}
+                                                                basePath={isAdmin ? `/admin/brand/${brandMetadata.id}` : basePath}
+                                                                onSelectSection={handleSelectSection}
+                                                            />
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
                                 </SortableContext>
                             </DndContext>
                         </div>

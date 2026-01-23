@@ -8,6 +8,7 @@ export interface BrandSection {
     id: string
     slug: string
     title: string
+    group?: string
     blocks: Block[]
 }
 
