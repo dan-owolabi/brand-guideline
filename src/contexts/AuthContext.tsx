@@ -118,38 +118,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return
             }
 
-            // Fallback: Try workspace_members table
+            // Fallback: Try workspace_members table with timeout
             console.log('AuthContext: Trying workspace_members table...')
-            const { data, error } = await supabase
-                .from('workspace_members')
-                .select(`
-                    role,
-                    can_invite,
-                    brand_access_type,
-                    workspace:workspaces (
-                        id,
-                        name,
-                        slug,
-                        logo_url,
-                        owner_id
-                    )
-                `)
-                .eq('user_id', userId)
+            try {
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('workspace_members query timeout')), 5000)
+                )
+                const membersPromise = supabase
+                    .from('workspace_members')
+                    .select(`
+                        role,
+                        can_invite,
+                        brand_access_type,
+                        workspace:workspaces (
+                            id,
+                            name,
+                            slug,
+                            logo_url,
+                            owner_id
+                        )
+                    `)
+                    .eq('user_id', userId)
 
-            console.log('AuthContext: workspace_members result', { count: data?.length, error: error?.message })
+                const { data, error } = await Promise.race([
+                    membersPromise,
+                    timeoutPromise
+                ]) as any
 
-            if (!error && data && data.length > 0) {
-                const userWorkspaces = data
-                    .filter(m => m.workspace)
-                    .map(m => ({
-                        ...(m.workspace as any),
-                        role: m.role,
-                        can_invite: m.can_invite,
-                        brand_access_type: m.brand_access_type
-                    })) as Workspace[]
+                console.log('AuthContext: workspace_members result', { count: data?.length, error: error?.message })
 
-                setWorkspaces(userWorkspaces)
-                return
+                if (!error && data && data.length > 0) {
+                    const userWorkspaces = data
+                        .filter((m: any) => m.workspace)
+                        .map((m: any) => ({
+                            ...(m.workspace as any),
+                            role: m.role,
+                            can_invite: m.can_invite,
+                            brand_access_type: m.brand_access_type
+                        })) as Workspace[]
+
+                    setWorkspaces(userWorkspaces)
+                    return
+                }
+            } catch (membersErr) {
+                console.log('AuthContext: workspace_members query failed or timed out, trying legacy...', membersErr)
             }
 
             // Final fallback: legacy accounts
