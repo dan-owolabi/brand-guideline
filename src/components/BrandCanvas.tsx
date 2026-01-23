@@ -609,6 +609,8 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
                 brandName={brandMetadata?.name}
                 isPublishing={isPublishing}
             />
+
+            {isAdmin && <FloatingTextToolbar />}
         </div>
     )
 }
