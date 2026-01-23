@@ -70,10 +70,14 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
     // For simplicity, we rely on props or params to determine the active section slug.
     // In the new routing: `app/admin/brand/[id]/[slug]/page.tsx` would pass the slug.
 
-    // Let's try to normalize valid slug from params
-    const activeSlug = isAdmin
+    // Initial slug from URL params
+    const initialSlug = isAdmin
         ? (Array.isArray(slugParam) ? slugParam[0] : slugParam)
         : (params?.pageSlug ? (Array.isArray(params.pageSlug) ? params.pageSlug[0] : params.pageSlug) : (typeof slugParam === 'string' ? slugParam : ''))
+
+    // Local state for active section - allows instant switching without navigation
+    const [currentSlug, setCurrentSlug] = useState<string | null>(null)
+    const activeSlug = currentSlug ?? initialSlug
 
     // Resolve brand ID for editor hook
     const editorBrandId = isAdmin ? brandIdParam : null
@@ -187,6 +191,16 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
     const activeSectionIndex = sections.findIndex(s => s.id === activeSection?.id)
     const prevSection = activeSectionIndex > 0 ? sections[activeSectionIndex - 1] : null
     const nextSection = activeSectionIndex < sections.length - 1 ? sections[activeSectionIndex + 1] : null
+
+    // Handle section selection - update local state and URL without navigation
+    const handleSelectSection = (slug: string) => {
+        setCurrentSlug(slug)
+        // Update URL without triggering navigation
+        const newUrl = isAdmin
+            ? `/admin/brand/${brandMetadata.id}/${slug}`
+            : `${basePath || `/brand/${brandMetadata.slug}`}/${slug}`
+        window.history.replaceState(null, '', newUrl)
+    }
 
     // Extract H2/H3 for current section
     const subheadings = useMemo(() => {
@@ -371,6 +385,7 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }: Br
                                                 subheadings={activeSection?.id === section.id ? subheadings : []}
                                                 sectionsCount={sections.length}
                                                 basePath={isAdmin ? `/admin/brand/${brandMetadata.id}` : basePath}
+                                                onSelectSection={handleSelectSection}
                                             />
                                         ))}
                                     </ul>
@@ -583,7 +598,7 @@ function DndBlockContent({
 }
 
 
-function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandSlug, setSectionToDelete, subheadings, sectionsCount, basePath }: any) {
+function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandSlug, setSectionToDelete, subheadings, sectionsCount, basePath, onSelectSection }: any) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: section.id,
         disabled: !isAdmin
@@ -599,18 +614,6 @@ function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandS
 
     const isActive = activeSectionId === section.id
 
-    // Construct link path
-    // If Admin: /admin/brand/[id]/[slug]
-    // If Public: [basePath]/[slug]
-
-    let href = ''
-    if (isAdmin) {
-        href = `/admin/brand/${brandId}/${section.slug}`
-    } else {
-        const base = basePath || `/brand/${brandSlug}`
-        href = `${base}/${section.slug}`
-    }
-
     return (
         <li ref={setNodeRef} style={style} {...attributes}>
             <div className={`flex items-center justify-between group/item relative ${isActive ? '' : 'hover:bg-gray-50'} rounded-md`}>
@@ -620,12 +623,12 @@ function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandS
                     </div>
                 )}
 
-                <Link
-                    href={href}
-                    className={`flex-1 py-1 px-2 rounded-md transition-all text-[13px] tracking-tight ${isActive ? 'font-medium text-gray-900 bg-gray-100' : 'font-normal text-gray-500'}`}
+                <button
+                    onClick={() => onSelectSection(section.slug)}
+                    className={`flex-1 py-1 px-2 rounded-md transition-all text-[13px] tracking-tight text-left ${isActive ? 'font-medium text-gray-900 bg-gray-100' : 'font-normal text-gray-500 hover:text-gray-700'}`}
                 >
                     {section.title || 'Untitled Section'}
-                </Link>
+                </button>
 
                 {isAdmin && sectionsCount > 1 && (
                     <button
