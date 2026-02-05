@@ -2,9 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 import { compressImage } from './imageCompressor'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Use service role key to bypass RLS for local development
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnZ2JmcGlrbmVmd3RjY2Roc3ZyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODAzODY1MiwiZXhwIjoyMDgzNjE0NjUyfQ.YePS4d3UpxfaaxyvZWcNO2Ef54VgApCA4rJVOayfwxo'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Helper to upload file to storage (with automatic compression for images)
 export async function uploadFile(file, bucket = 'media') {

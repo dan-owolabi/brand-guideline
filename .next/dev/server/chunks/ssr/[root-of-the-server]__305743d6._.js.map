@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/Danny/Documents/Nobora/Brand%20Guide/src/app/page.tsx"],"sourcesContent":["\r\nimport { redirect } from 'next/navigation'\r\n\r\nexport default function RootPage() {\r\n  // In a real app, we check session here.\r\n  // For now, default root access (likely app.guidr.space) goes to /login\r\n  redirect('/login')\r\n}\r\n"],"names":[],"mappings":";;;;AACA;AAAA;;AAEe,SAAS;IACtB,wCAAwC;IACxC,uEAAuE;IACvE,IAAA,iMAAQ,EAAC;AACX"}}]
+}

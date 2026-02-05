@@ -1,0 +1,20 @@
+{
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(auth)/signup/page": "app/(auth)/signup/page.js",
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/brand/[id]/[slug]/page": "app/admin/brand/[id]/[slug]/page.js",
+  "/admin/brand/[id]/assets/page": "app/admin/brand/[id]/assets/page.js",
+  "/admin/brand/[id]/page": "app/admin/brand/[id]/page.js",
+  "/admin/brand/[id]/pages/page": "app/admin/brand/[id]/pages/page.js",
+  "/admin/brand/[id]/settings/page": "app/admin/brand/[id]/settings/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/admin/settings/page": "app/admin/settings/page.js",
+  "/auth/callback/route": "app/auth/callback/route.js",
+  "/brand/[slug]/[...pageSlug]/page": "app/brand/[slug]/[...pageSlug]/page.js",
+  "/brand/[slug]/assets/page": "app/brand/[slug]/assets/page.js",
+  "/brand/[slug]/page": "app/brand/[slug]/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/marketing/page": "app/marketing/page.js",
+  "/page": "app/page.js"
+}

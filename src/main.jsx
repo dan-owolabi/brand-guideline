@@ -17,13 +17,22 @@ import './index.css'
  * - {brand}.guidr.space → PublicBrandApp
  * - custom domain → PublicBrandApp (with hostname lookup)
  */
+import App from './App'
+
 function AppRoot() {
   const context = resolveDomainContext()
+
+  // DEV MODE: On localhost, use the simple App.jsx with direct routes
+  // This bypasses the accounts system for local development
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return <App />
+  }
 
   // Marketing site (guidr.space)
   if (context.type === 'marketing') {
     return <MarketingApp />
   }
+
 
   // Authenticated app (app.guidr.space)
   if (context.type === 'app') {

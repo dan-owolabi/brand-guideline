@@ -1,0 +1,20 @@
+{
+  "/(auth)/login/page": "/login",
+  "/(auth)/signup/page": "/signup",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/admin/brand/[id]/[slug]/page": "/admin/brand/[id]/[slug]",
+  "/admin/brand/[id]/assets/page": "/admin/brand/[id]/assets",
+  "/admin/brand/[id]/page": "/admin/brand/[id]",
+  "/admin/brand/[id]/pages/page": "/admin/brand/[id]/pages",
+  "/admin/brand/[id]/settings/page": "/admin/brand/[id]/settings",
+  "/admin/page": "/admin",
+  "/admin/settings/page": "/admin/settings",
+  "/auth/callback/route": "/auth/callback",
+  "/brand/[slug]/[...pageSlug]/page": "/brand/[slug]/[...pageSlug]",
+  "/brand/[slug]/assets/page": "/brand/[slug]/assets",
+  "/brand/[slug]/page": "/brand/[slug]",
+  "/favicon.ico/route": "/favicon.ico",
+  "/marketing/page": "/marketing",
+  "/page": "/"
+}

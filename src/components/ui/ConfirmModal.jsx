@@ -167,7 +167,8 @@ export function InputModal({
     placeholder = '',
     defaultValue = '',
     submitText = 'Create',
-    cancelText = 'Cancel'
+    cancelText = 'Cancel',
+    multiline = false
 }) {
     const [value, setValue] = useState(defaultValue)
 
@@ -210,15 +211,26 @@ export function InputModal({
                         {title}
                     </h3>
 
-                    {/* Input */}
-                    <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        placeholder={placeholder}
-                        autoFocus
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all mb-6"
-                    />
+                    {/* Input or Textarea based on multiline prop */}
+                    {multiline ? (
+                        <textarea
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            placeholder={placeholder}
+                            autoFocus
+                            rows={4}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all mb-6 resize-none"
+                        />
+                    ) : (
+                        <input
+                            type="text"
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            placeholder={placeholder}
+                            autoFocus
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all mb-6"
+                        />
+                    )}
 
                     {/* Actions */}
                     <div className="flex gap-3">

@@ -663,52 +663,66 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         await supabase.from('assets').update({ name: newText, description: newText }).eq('id', assetId)
     }
 
-    // Create a new empty folder (like Google Drive "New Folder")
+    // Create new empty folders (supports multiple names separated by comma or newline)
     const handleCreateFolder = (sectionId = null, parentId = null) => {
         setInputModal({
             open: true,
-            title: 'Create new folder',
-            placeholder: 'Folder name',
+            title: 'Create new folder(s)',
+            placeholder: 'Folder names (separate multiple with commas or new lines)',
             defaultValue: 'New Folder',
             submitText: 'Create',
-            onSubmit: async (folderName) => {
-                const tempId = `folder-${Date.now()}`
+            multiline: true,
+            onSubmit: async (input) => {
+                // Split by comma or newline and trim each name
+                const folderNames = input
+                    .split(/[,\n]/)
+                    .map(name => name.trim())
+                    .filter(name => name.length > 0)
+
+                if (folderNames.length === 0) return
+
                 const effectiveSectionId = sectionId || (parentId ? assets.find(a => a.id === parentId)?.collection_id : null)
 
-                const newFolder = {
-                    id: tempId,
-                    brand_id: brand.id,
-                    name: folderName,
-                    is_folder: true,
-                    parent_id: parentId,
-                    collection_id: effectiveSectionId,
-                    created_at: new Date().toISOString()
-                }
+                // Create all folders
+                for (const folderName of folderNames) {
+                    const tempId = `folder-${Date.now()}-${Math.random()}`
 
-                // Optimistic update
-                setAssets(prev => [...prev, newFolder])
-
-                try {
-                    const { data, error } = await supabase.from('assets').insert({
+                    const newFolder = {
+                        id: tempId,
                         brand_id: brand.id,
                         name: folderName,
                         is_folder: true,
                         parent_id: parentId,
-                        collection_id: effectiveSectionId
-                    }).select().single()
+                        collection_id: effectiveSectionId,
+                        created_at: new Date().toISOString()
+                    }
 
-                    if (error) throw error
+                    // Optimistic update
+                    setAssets(prev => [...prev, newFolder])
 
-                    // Replace temp with real
-                    setAssets(prev => prev.map(a => a.id === tempId ? data : a))
-                } catch (err) {
-                    console.error('Failed to create folder:', err)
-                    setAssets(prev => prev.filter(a => a.id !== tempId))
-                    alert('Failed to create folder. Make sure the database schema is updated.')
+                    try {
+                        const { data, error } = await supabase.from('assets').insert({
+                            brand_id: brand.id,
+                            name: folderName,
+                            is_folder: true,
+                            parent_id: parentId,
+                            collection_id: effectiveSectionId
+                        }).select().single()
+
+                        if (error) throw error
+
+                        // Replace temp with real
+                        setAssets(prev => prev.map(a => a.id === tempId ? data : a))
+                    } catch (err) {
+                        console.error('Failed to create folder:', err)
+                        setAssets(prev => prev.filter(a => a.id !== tempId))
+                        alert(`Failed to create folder "${folderName}". Make sure the database schema is updated.`)
+                    }
                 }
             }
         })
     }
+
 
     // Get assets for a section
     // Get assets for a section

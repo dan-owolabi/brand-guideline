@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/Danny/Documents/Nobora/Brand%20Guide/src/app/admin/brand/%5Bid%5D/%5Bslug%5D/layout.tsx"],"sourcesContent":["'use client'\r\n\r\n// This layout removes the AdminLayoutWrapper sidebar for the builder pages\r\n// The builder (BrandCanvas) has its own navigation\r\n\r\nexport default function BuilderLayout({\r\n    children\r\n}: {\r\n    children: React.ReactNode\r\n}) {\r\n    return <>{children}</>\r\n}\r\n"],"names":[],"mappings":";;;;;AAAA;;AAKe,SAAS,cAAc,EAClC,QAAQ,EAGX;IACG,qBAAO;kBAAG;;AACd"}}]
+}
