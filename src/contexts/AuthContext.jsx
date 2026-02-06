@@ -3,6 +3,22 @@ import { supabase } from '../lib/supabase'
 import { getAuthCallbackUrl } from '../lib/domainResolver'
 
 const AuthContext = createContext(null)
+const AUTH_TIMEOUT_MS = 8000
+
+function withTimeout(promise, ms, message) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(message)), ms)
+        promise
+            .then((value) => {
+                clearTimeout(timer)
+                resolve(value)
+            })
+            .catch((err) => {
+                clearTimeout(timer)
+                reject(err)
+            })
+    })
+}
 
 function getAuthRedirectUrl() {
     const explicitRedirect = import.meta.env.VITE_AUTH_REDIRECT_URL
@@ -33,7 +49,11 @@ export function AuthProvider({ children }) {
 
         const initSession = async () => {
             try {
-                const { data, error } = await supabase.auth.getSession()
+                const { data, error } = await withTimeout(
+                    supabase.auth.getSession(),
+                    AUTH_TIMEOUT_MS,
+                    'Timed out loading session'
+                )
                 if (error) throw error
 
                 const session = data?.session ?? null
@@ -89,20 +109,24 @@ export function AuthProvider({ children }) {
     // Fetch user's accounts
     const fetchUserAccounts = async (userId) => {
         try {
-            const { data, error } = await supabase
-                .from('account_members')
-                .select(`
-                    role,
-                    account:accounts (
-                        id,
-                        name,
-                        slug,
-                        logo_url,
-                        is_published,
-                        custom_domain
-                    )
-                `)
-                .eq('user_id', userId)
+            const { data, error } = await withTimeout(
+                supabase
+                    .from('account_members')
+                    .select(`
+                        role,
+                        account:accounts (
+                            id,
+                            name,
+                            slug,
+                            logo_url,
+                            is_published,
+                            custom_domain
+                        )
+                    `)
+                    .eq('user_id', userId),
+                AUTH_TIMEOUT_MS,
+                'Timed out loading accounts'
+            )
 
             if (error) {
                 console.error('Failed to fetch accounts:', error)

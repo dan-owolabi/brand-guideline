@@ -28,6 +28,7 @@ export default function BrandsDashboard() {
     const location = useLocation()
     const [brands, setBrands] = useState([])
     const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState('')
     const [showNewModal, setShowNewModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
     const [editingBrandId, setEditingBrandId] = useState(null)
@@ -40,6 +41,19 @@ export default function BrandsDashboard() {
             ? `/admin/brand/${brandId}/${pageSlug}`
             : `/brand/${brandId}/${pageSlug}`
     )
+
+    const withTimeout = (promise, ms, message) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(message)), ms)
+        promise
+            .then((value) => {
+                clearTimeout(timer)
+                resolve(value)
+            })
+            .catch((err) => {
+                clearTimeout(timer)
+                reject(err)
+            })
+    })
 
     const filteredBrands = brands.filter(brand => {
         if (filter === 'all') return true
@@ -89,16 +103,23 @@ export default function BrandsDashboard() {
         }
 
         try {
-            const { data, error } = await supabase
-                .from('brands')
-                .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, published, slug, account_id')
-                .eq('account_id', currentAccount.id)
-                .order('created_at', { ascending: false })
+            setLoadError('')
+            const { data, error } = await withTimeout(
+                supabase
+                    .from('brands')
+                    .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, published, slug, account_id')
+                    .eq('account_id', currentAccount.id)
+                    .order('created_at', { ascending: false }),
+                8000,
+                'Timed out loading brands'
+            )
 
             if (error) throw error
             setBrands(data || [])
         } catch (err) {
             console.error('Failed to load brands:', err)
+            setLoadError(err.message || 'Failed to load brands')
+            setBrands([])
         } finally {
             setLoading(false)
         }
@@ -277,6 +298,23 @@ export default function BrandsDashboard() {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+        )
+    }
+
+    if (loadError) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center bg-white border border-gray-200 rounded-2xl p-8 shadow-sm max-w-md">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Could not load dashboard</h2>
+                    <p className="text-sm text-gray-600 mb-6">{loadError}</p>
+                    <button
+                        onClick={() => { setLoading(true); loadBrands() }}
+                        className="px-5 py-2.5 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
             </div>
         )
     }
