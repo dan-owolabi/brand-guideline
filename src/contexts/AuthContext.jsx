@@ -1,7 +1,15 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getAuthCallbackUrl } from '../lib/domainResolver'
 
 const AuthContext = createContext(null)
+
+function getAuthRedirectUrl() {
+    const explicitRedirect = import.meta.env.VITE_AUTH_REDIRECT_URL
+    if (explicitRedirect) return explicitRedirect
+
+    return getAuthCallbackUrl()
+}
 
 export function useAuth() {
     const context = useContext(AuthContext)
@@ -21,17 +29,40 @@ export function AuthProvider({ children }) {
 
     // Initialize auth state
     useEffect(() => {
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session)
-            setUser(session?.user ?? null)
-            if (session?.user) {
-                fetchUserAccounts(session.user.id)
-            } else {
+        let isActive = true
+
+        const initSession = async () => {
+            try {
+                const { data, error } = await supabase.auth.getSession()
+                if (error) throw error
+
+                const session = data?.session ?? null
+                if (!isActive) return
+
+                setSession(session)
+                setUser(session?.user ?? null)
+
+                if (session?.user) {
+                    await fetchUserAccounts(session.user.id)
+                } else {
+                    setAccounts([])
+                    setCurrentAccount(null)
+                    setLoading(false)
+                }
+            } catch (err) {
+                console.error('Failed to load auth session:', err)
+                if (!isActive) return
+                setSession(null)
+                setUser(null)
+                setAccounts([])
+                setCurrentAccount(null)
                 setLoading(false)
+            } finally {
+                if (isActive) setInitialized(true)
             }
-            setInitialized(true)
-        })
+        }
+
+        initSession()
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -49,7 +80,10 @@ export function AuthProvider({ children }) {
             }
         )
 
-        return () => subscription.unsubscribe()
+        return () => {
+            isActive = false
+            subscription.unsubscribe()
+        }
     }, [])
 
     // Fetch user's accounts
@@ -113,6 +147,7 @@ export function AuthProvider({ children }) {
             email,
             password,
             options: {
+                emailRedirectTo: getAuthRedirectUrl(),
                 data: {
                     full_name: fullName
                 }
@@ -135,7 +170,7 @@ export function AuthProvider({ children }) {
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`
+                redirectTo: getAuthRedirectUrl()
             }
         })
         return { data, error }

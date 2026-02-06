@@ -112,6 +112,23 @@ export function getAppUrl() {
 }
 
 /**
+ * Get the app origin (no path/query) for auth redirects
+ */
+export function getAppOrigin() {
+    if (DOMAINS.LOCAL.includes(window.location.hostname)) {
+        return `${window.location.protocol}//${window.location.host}`
+    }
+    return `https://app.${DOMAINS.BASE_DOMAIN}`
+}
+
+/**
+ * Get the auth callback URL
+ */
+export function getAuthCallbackUrl() {
+    return `${getAppOrigin()}/auth/callback`
+}
+
+/**
  * Get the marketing site URL
  */
 export function getMarketingUrl() {
@@ -128,5 +145,7 @@ export default {
     isMarketingContext,
     getBrandUrl,
     getAppUrl,
+    getAppOrigin,
+    getAuthCallbackUrl,
     getMarketingUrl
 }

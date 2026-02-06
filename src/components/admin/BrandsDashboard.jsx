@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { supabase, uploadFile } from '../../lib/supabase'
 import { createDefaultSections } from '../../data/defaultSections'
 import { useAuth } from '../../contexts/AuthContext'
@@ -25,6 +25,7 @@ const COLOR_PRESETS = [
 
 export default function BrandsDashboard() {
     const navigate = useNavigate()
+    const location = useLocation()
     const [brands, setBrands] = useState([])
     const [loading, setLoading] = useState(true)
     const [showNewModal, setShowNewModal] = useState(false)
@@ -32,6 +33,13 @@ export default function BrandsDashboard() {
     const [editingBrandId, setEditingBrandId] = useState(null)
     const [filter, setFilter] = useState('all')
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, brandId: null, brandName: '' })
+
+    const isLegacyAdminRoute = location.pathname.startsWith('/admin')
+    const getEditorPath = (brandId, pageSlug = 'introduction') => (
+        isLegacyAdminRoute
+            ? `/admin/brand/${brandId}/${pageSlug}`
+            : `/brand/${brandId}/${pageSlug}`
+    )
 
     const filteredBrands = brands.filter(brand => {
         if (filter === 'all') return true
@@ -183,7 +191,7 @@ export default function BrandsDashboard() {
 
             setShowNewModal(false)
             resetForm()
-            navigate(`/admin/brand/${data.id}/introduction`)
+            navigate(getEditorPath(data.id))
         } catch (err) {
             alert('Failed to create brand: ' + err.message)
         } finally {
@@ -392,7 +400,7 @@ export default function BrandsDashboard() {
                             <div
                                 key={brand.id}
                                 className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                                onClick={() => navigate(`/admin/brand/${brand.id}/introduction`)}
+                                onClick={() => navigate(getEditorPath(brand.id))}
                             >
                                 {/* Card Cover */}
                                 <div
