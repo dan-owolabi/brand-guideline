@@ -61,6 +61,10 @@ export default function AuthenticatedApp() {
             <Route path="/brand/:brandId/:pageSlug" element={<BrandCanvasWrapper />} />
             {/* TEMP: Auth bypass for brand route */}
             <Route path="/brand/:brandId" element={<Navigate to="introduction" replace />} />
+            {/* Admin brand routes - sidebar generates /admin/brand/:id/:slug links when isAdmin=true */}
+            <Route path="/admin/brand/:brandId/assets" element={<AssetsPage />} />
+            <Route path="/admin/brand/:brandId/:slug" element={<BrandCanvasWrapper />} />
+            <Route path="/admin/brand/:brandId" element={<Navigate to="introduction" replace />} />
             <Route path="/settings" element={
                 <RequireAuth>
                     <RequireAccount>
