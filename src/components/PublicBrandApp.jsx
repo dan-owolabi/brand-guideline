@@ -23,59 +23,63 @@ export default function PublicBrandApp({ brandIdentifier, isCustomDomain = false
     const loadBrand = async () => {
         try {
             let query = supabase
-                .from('accounts')
+                .from('brands')
                 .select(`
                     id,
                     name,
                     slug,
                     logo_url,
-                    is_published,
-                    custom_domain,
-                    brands (
+                    primary_color,
+                    published,
+                    accounts!inner (
                         id,
                         name,
+                        slug,
                         logo_url,
-                        primary_color,
-                        published,
-                        slug
+                        is_published,
+                        custom_domain
                     )
                 `)
 
             if (isCustomDomain) {
-                // Lookup by custom domain
-                query = query.eq('custom_domain', brandIdentifier)
+                // Lookup by custom domain mapped to the account
+                query = query.eq('accounts.custom_domain', brandIdentifier)
             } else {
-                // Lookup by slug
+                // Lookup by brand slug
                 query = query.eq('slug', brandIdentifier)
             }
 
-            const { data, error } = await query.single()
+            // Since custom_domain on account might return multiple brands, we use .limit(1).single()
+            // Wait, if an account has multiple brands and uses a custom domain, which brand is the default?
+            // For now, we take the one that matches or the first one returned by .single()
+            const { data: brandData, error } = await query.limit(1).single()
 
             if (error) throw error
 
+            const accountData = brandData.accounts
+
             // Check if published
-            if (!data.is_published) {
+            if (!accountData.is_published) {
                 setError('not_published')
                 return
             }
 
-            // Get the first/default brand
-            const defaultBrand = data.brands?.[0]
-            if (!defaultBrand) {
-                setError('no_brand')
+            // A brand itself must also be published (have published data)
+            if (!brandData.published) {
+                setError('not_published')
                 return
             }
 
             setBrand({
-                accountId: data.id,
-                accountName: data.name,
-                accountSlug: data.slug,
-                brandId: defaultBrand.id,
-                name: defaultBrand.name,
-                slug: defaultBrand.slug,
-                logoUrl: defaultBrand.logo_url || data.logo_url,
-                primaryColor: defaultBrand.primary_color,
-                published: defaultBrand.published || { tokens: {}, sections: [] }
+                accountId: accountData.id,
+                accountName: accountData.name,
+                accountSlug: accountData.slug,
+                brandId: brandData.id,
+                name: brandData.name,
+                slug: brandData.slug,
+                logoUrl: brandData.logo_url || accountData.logo_url,
+                primaryColor: brandData.primary_color,
+                published: brandData.published || { tokens: {}, sections: [] }
             })
         } catch (err) {
             console.error('Failed to load brand:', err)
