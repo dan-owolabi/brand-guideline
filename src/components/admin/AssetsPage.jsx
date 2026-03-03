@@ -83,6 +83,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState([])
     const [downloading, setDownloading] = useState(false)
+    const [dragOverSection, setDragOverSection] = useState(null) // section ID or 'uncategorized'
 
     // Publish functionality
     const { publish, saving: publishing, brandMetadata } = useBrandEditor(identifier)
@@ -173,6 +174,30 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             console.error('Failed to fetch data:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    // File drag & drop handlers (OS files dragged onto sections)
+    const handleFileDragOver = (e, sectionId) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (dragOverSection !== sectionId) setDragOverSection(sectionId)
+    }
+
+    const handleFileDragLeave = (e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+            setDragOverSection(null)
+        }
+    }
+
+    const handleFileDrop = (e, sectionId = null) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setDragOverSection(null)
+        const files = Array.from(e.dataTransfer.files)
+        if (files.length > 0) {
+            setUploadToSection(sectionId)
+            handleUpload(files, sectionId)
         }
     }
 
@@ -814,12 +839,20 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                             className="absolute inset-0"
                             style={{ backgroundColor: brand?.primary_color || '#111827' }}
                         >
-                            {/* Temporary Banner Override */}
-                            <img
-                                src="/assets-banner.png"
-                                alt="Banner"
-                                className="w-full h-full object-cover"
-                            />
+                                {brand?.banner_url ? (
+                                <img
+                                    src={brand.banner_url}
+                                    alt="Banner"
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <img
+                                    src="/assets-banner.png"
+                                    alt="Banner"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                />
+                            )}
                         </div>
 
                         {/* Change Cover Button - Admin Only */}
@@ -1064,6 +1097,52 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                     </div>
                 ) : (
                     <>
+                        {/* Full-page empty state when no sections or assets exist */}
+                        {sections.length === 0 && uncategorizedAssets.length === 0 && (
+                            isAdmin ? (
+                                <div
+                                    className={`flex flex-col items-center justify-center py-20 text-center rounded-2xl border-2 border-dashed transition-all duration-150 ${dragOverSection === 'page' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'}`}
+                                    onDragOver={(e) => { e.preventDefault(); setDragOverSection('page') }}
+                                    onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverSection(null) }}
+                                    onDrop={(e) => { e.preventDefault(); setDragOverSection(null); const files = Array.from(e.dataTransfer.files); if (files.length > 0) handleUpload(files, null) }}
+                                >
+                                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-5">
+                                        <Upload size={28} className="text-gray-300" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-1.5">No assets yet</h3>
+                                    <p className="text-sm text-gray-400 mb-7 max-w-xs mx-auto leading-relaxed">
+                                        Organize brand files into sections. Upload logos, fonts, templates, and more — or drag files here to get started.
+                                    </p>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setIsAddingSection(true)}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors cursor-pointer"
+                                        >
+                                            <Plus size={15} />
+                                            New Section
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setUploadToSection(null)
+                                                if (fileInputRef.current) {
+                                                    fileInputRef.current.removeAttribute('webkitdirectory')
+                                                    fileInputRef.current.click()
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                                        >
+                                            <Upload size={15} />
+                                            Upload Files
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-20 text-gray-400 text-sm">
+                                    No assets available yet.
+                                </div>
+                            )
+                        )}
+
                         <DndContext
                             sensors={sensors}
                             collisionDetection={closestCenter}
@@ -1076,7 +1155,15 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                                         const sectionAssets = getAssetsForSection(section.id)
                                         const isEditing = editingSectionId === section.id
                                         return (
-                                            <SortableSection key={section.id} id={section.id} isAdmin={isAdmin}>
+                                            <SortableSection
+                                            key={section.id}
+                                            id={section.id}
+                                            isAdmin={isAdmin}
+                                            onFileDragOver={(e) => handleFileDragOver(e, section.id)}
+                                            onFileDragLeave={handleFileDragLeave}
+                                            onFileDrop={(e) => handleFileDrop(e, section.id)}
+                                            isDragOver={dragOverSection === section.id}
+                                        >
                                                 {(dragHandleProps) => (
                                                     <>
                                                         <div className="flex items-center justify-between group">
@@ -1572,7 +1659,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
 }
 
 // Sortable Section Wrapper for drag-and-drop
-function SortableSection({ id, isAdmin, children }) {
+function SortableSection({ id, isAdmin, children, onFileDragOver, onFileDragLeave, onFileDrop, isDragOver }) {
     const {
         attributes,
         listeners,
@@ -1595,7 +1682,10 @@ function SortableSection({ id, isAdmin, children }) {
         <section
             ref={setNodeRef}
             style={style}
-            className="space-y-4"
+            className={`space-y-4 rounded-xl transition-all duration-150 ${isDragOver ? 'ring-2 ring-indigo-400 ring-offset-4 bg-indigo-50/20' : ''}`}
+            onDragOver={onFileDragOver}
+            onDragLeave={onFileDragLeave}
+            onDrop={onFileDrop}
         >
             {typeof children === 'function' ? children(dragHandleProps) : children}
         </section>
