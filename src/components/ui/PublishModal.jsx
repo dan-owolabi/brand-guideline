@@ -31,7 +31,8 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
-            setSlug(initialSlug || (brandName ? brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''))
+            // Default slug generation: lowercase, remove all non-alphanumeric chars
+            setSlug(initialSlug || (brandName ? brandName.toLowerCase().replace(/[^a-z0-9]+/g, '') : ''))
             setError(null)
             setPublishMode('both')
         }
@@ -40,7 +41,8 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
     if (!isOpen) return null
 
     const handleSubmit = () => {
-        const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-')
+        // Remove all non-alphanumeric characters (no hyphens) for subdomains
+        const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '')
 
         if (!cleanSlug) {
             setError('Please enter a valid link name')
@@ -101,11 +103,10 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                                         <button
                                             key={mode.id}
                                             onClick={() => setPublishMode(mode.id)}
-                                            className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-center transition-all ${
-                                                isSelected
+                                            className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-center transition-all ${isSelected
                                                     ? 'border-green-500 bg-green-50'
                                                     : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                                            }`}
+                                                }`}
                                         >
                                             {isSelected && (
                                                 <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
@@ -135,10 +136,7 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                                 Public Link
                             </label>
-                            <div className="relative">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                                    {host}/brand/
-                                </div>
+                            <div className="relative flex items-center bg-gray-50 border rounded-lg focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all overflow-hidden">
                                 <input
                                     type="text"
                                     value={slug}
@@ -146,10 +144,12 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                                         setSlug(e.target.value)
                                         setError(null)
                                     }}
-                                    placeholder="brand-name"
-                                    className={`w-full pr-4 py-2.5 bg-gray-50 border rounded-lg text-sm font-medium outline-none transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`}
-                                    style={{ paddingLeft: `${Math.min((host.length + 7) * 8 + 20, 220)}px` }}
+                                    placeholder="brandname"
+                                    className={`flex-1 min-w-0 pl-4 py-2.5 bg-transparent text-sm font-medium outline-none text-right ${error ? 'text-red-600' : 'text-gray-900'}`}
                                 />
+                                <div className="pr-4 pl-1 py-2.5 text-gray-400 text-sm font-medium pointer-events-none whitespace-nowrap">
+                                    .guidr.space
+                                </div>
                             </div>
                             {error && (
                                 <div className="flex items-center gap-1.5 mt-2 text-red-500 text-xs font-medium">
@@ -158,7 +158,7 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                                 </div>
                             )}
                             <p className="mt-2 text-xs text-gray-400">
-                                Letters, numbers, and dashes only.
+                                Letters and numbers only (no spaces or dashes).
                             </p>
                         </div>
                     </div>

@@ -498,9 +498,21 @@ export default function BrandsDashboard() {
                                     </div>
 
                                     {/* Hover "Enter" Action */}
-                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-between px-6 py-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <span className="font-medium text-gray-900">Edit Project</span>
-                                        <ExternalLink size={16} className="text-gray-900" />
+                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 opacity-0 group-hover:opacity-100 transition-opacity gap-3">
+                                        <div className="font-medium text-gray-900 border border-gray-200 bg-white px-6 py-2 rounded-full shadow-sm hover:bg-gray-50 flex items-center gap-2">
+                                            Edit Project
+                                        </div>
+                                        {brand.published && (
+                                            <a
+                                                href={getBrandUrl(brand.slug || brand.id)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="font-medium text-indigo-600 bg-indigo-50 px-6 py-2 rounded-full hover:bg-indigo-100 flex items-center gap-2"
+                                            >
+                                                View Live <ExternalLink size={16} />
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                             </div>

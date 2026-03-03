@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, Check, Loader2, Globe, Menu, PanelLeft, Upload } from 'lucide-react'
 import { uploadFile } from '../lib/supabase'
+import { getBrandUrl } from '../lib/domainResolver'
 
 // Helper to determine text color (black or white) based on background brightness
 function getContrastColor(hexColor) {
@@ -105,9 +106,10 @@ export default function Header({
 
     // Public URL for View Live button
     const publicIdentifier = brand?.slug || brand?.id
+    // Instead of routing to /brand/slug, use the canonical getBrandUrl which creates slug.guidr.space
     const viewLiveUrl = isAssetsActive
-        ? `/brand/${publicIdentifier}/assets`
-        : `/brand/${publicIdentifier}`
+        ? `${getBrandUrl(publicIdentifier)}/assets`
+        : getBrandUrl(publicIdentifier)
 
     return (
         <header
