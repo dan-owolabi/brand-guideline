@@ -85,6 +85,17 @@ function BrandCanvasWrapper({ isAdmin }) {
     )
   }
 
+  // Enforce publishMode rules for public users (non-admin)
+  if (!isAdmin) {
+    const publishMode = brandData.published?.publishMode || 'both'
+
+    // If only assets publish mode, and they hit a BrandCanvas wrapper, redirect to assets
+    if (publishMode === 'assets') {
+      const publicBasePath = `/brand/${brandData.slug}`
+      return <Navigate to={`${publicBasePath}/assets`} replace />
+    }
+  }
+
   return <BrandCanvas isAdmin={isAdmin} brandData={brandData} />
 }
 

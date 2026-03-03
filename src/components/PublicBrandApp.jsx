@@ -120,11 +120,37 @@ export default function PublicBrandApp({ brandIdentifier, isCustomDomain = false
         draft: brand.published // Public view always shows published
     }
 
+    const publishMode = brand.published?.publishMode || 'both'
+
     return (
         <Routes>
-            <Route path="/assets" element={<AssetsPage isAdmin={false} brandSlug={brandData.slug} basePath="" />} />
-            <Route path="/:pageSlug" element={<BrandCanvas isAdmin={false} brandData={brandData} basePath="" />} />
-            <Route path="/" element={<BrandCanvas isAdmin={false} brandData={brandData} basePath="" />} />
+            {/* Assets Route */}
+            <Route
+                path="/assets"
+                element={
+                    publishMode === 'guidelines'
+                        ? <Navigate to="/" replace />
+                        : <AssetsPage isAdmin={false} brandSlug={brandData.slug} basePath="" />
+                }
+            />
+
+            {/* Guidelines Routes */}
+            <Route
+                path="/:pageSlug"
+                element={
+                    publishMode === 'assets'
+                        ? <Navigate to="/assets" replace />
+                        : <BrandCanvas isAdmin={false} brandData={brandData} basePath="" />
+                }
+            />
+            <Route
+                path="/"
+                element={
+                    publishMode === 'assets'
+                        ? <Navigate to="/assets" replace />
+                        : <BrandCanvas isAdmin={false} brandData={brandData} basePath="" />
+                }
+            />
         </Routes>
     )
 }

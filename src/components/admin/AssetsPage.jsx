@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import {
     Upload, Trash2, Download, Search,
     Check, X, Loader2, FileText, FileImage,
@@ -29,7 +29,7 @@ import {
     useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers'
 import { ConfirmModal, InputModal } from '../ui/ConfirmModal'
 import { PublishModal } from '../ui/PublishModal'
 
@@ -70,11 +70,11 @@ async function downloadFile(url, filename) {
     }
 }
 
-export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath }) {
+export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath = undefined }) {
+    const navigate = useNavigate()
     const { brandId, slug } = useParams()
     // Identifier is either UUID (brandId), Slug from params, or passed prop
-    const identifier = brandId || slug || brandSlug
-    const navigate = useNavigate()
+    const identifier = brandSlug || slug || brandId
 
     const [brand, setBrand] = useState(null)
     const [assets, setAssets] = useState([])
@@ -211,6 +211,14 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         } finally {
             setLoading(false)
         }
+    }
+
+    // Enforce publishMode rules for public users
+    if (!isAdmin && brand && brand.publishMode === 'guidelines') {
+        const publicBasePath = basePath !== undefined ? basePath : `/brand/${brand.slug || identifier}`
+        // Use window.location.replace or Navigate
+        // We will just return a redirect component
+        return <Navigate to={publicBasePath !== '' ? publicBasePath : '/'} replace />
     }
 
     // File drag & drop handlers (OS files dragged onto sections)
