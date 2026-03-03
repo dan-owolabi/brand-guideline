@@ -417,7 +417,9 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             const { error } = await supabase.from('assets').insert(newFolder)
             if (error) {
                 console.error('[Upload Debug] Folder insert error:', error)
-                alert(`Failed to create folder "${folderName}".\n\nDatabase error: ${error.message}\n\nPlease run the schema migration in Supabase SQL Editor.`)
+                // Remove optimistic folder since it failed
+                setAssets(prev => prev.filter(a => a.id !== newId))
+                throw new Error(`Failed to create folder "${folderName}": ${error.message}`)
             }
             return newId
         }
@@ -484,11 +486,12 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                 }).catch(err => {
                     console.error('File upload failed', err)
                     setAssets(prev => prev.filter(a => a.id !== tempId))
-                    alert('File upload failed. If your files are vanishing, please ensure you have run the database migration to add "parent_id" column.')
+                    alert(`File upload failed: ${err?.message || err}\n\nIf columns are missing, run the migration in your Supabase SQL Editor.`)
                 })
             }
         } catch (err) {
             console.error('Upload batch failed', err)
+            alert(`Upload failed: ${err?.message || err}`)
         } finally {
             setUploading(false)
             setUploadToSection(null)
@@ -839,7 +842,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                             className="absolute inset-0"
                             style={{ backgroundColor: brand?.primary_color || '#111827' }}
                         >
-                                {brand?.banner_url ? (
+                            {brand?.banner_url ? (
                                 <img
                                     src={brand.banner_url}
                                     alt="Banner"
@@ -1113,7 +1116,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                                     <p className="text-sm text-gray-400 mb-7 max-w-xs mx-auto leading-relaxed">
                                         Organize brand files into sections. Upload logos, fonts, templates, and more — or drag files here to get started.
                                     </p>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap items-center justify-center gap-3">
                                         <button
                                             onClick={() => setIsAddingSection(true)}
                                             className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors cursor-pointer"
@@ -1133,6 +1136,26 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                                         >
                                             <Upload size={15} />
                                             Upload Files
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setUploadToSection(null)
+                                                if (fileInputRef.current) {
+                                                    fileInputRef.current.setAttribute('webkitdirectory', '')
+                                                    fileInputRef.current.click()
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                                        >
+                                            <Folder size={15} />
+                                            Upload Folder
+                                        </button>
+                                        <button
+                                            onClick={() => handleCreateFolder(null, null)}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                                        >
+                                            <Folder size={15} />
+                                            Create Folder
                                         </button>
                                     </div>
                                 </div>
@@ -1156,14 +1179,14 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                                         const isEditing = editingSectionId === section.id
                                         return (
                                             <SortableSection
-                                            key={section.id}
-                                            id={section.id}
-                                            isAdmin={isAdmin}
-                                            onFileDragOver={(e) => handleFileDragOver(e, section.id)}
-                                            onFileDragLeave={handleFileDragLeave}
-                                            onFileDrop={(e) => handleFileDrop(e, section.id)}
-                                            isDragOver={dragOverSection === section.id}
-                                        >
+                                                key={section.id}
+                                                id={section.id}
+                                                isAdmin={isAdmin}
+                                                onFileDragOver={(e) => handleFileDragOver(e, section.id)}
+                                                onFileDragLeave={handleFileDragLeave}
+                                                onFileDrop={(e) => handleFileDrop(e, section.id)}
+                                                isDragOver={dragOverSection === section.id}
+                                            >
                                                 {(dragHandleProps) => (
                                                     <>
                                                         <div className="flex items-center justify-between group">
