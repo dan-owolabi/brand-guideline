@@ -897,7 +897,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             {/* Main Content */}
             <main className={`max-w-5xl mx-auto px-8 pb-24 space-y-6 ${currentFolderId ? 'pt-36 md:pt-44' : 'pt-8'}`}>
 
-                {/* View Mode Toggle - Moved closer to sections */}
+                {/* View Mode Toggle + Upload Controls */}
                 {!currentFolderId && (
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
                         <div className="flex items-center gap-4 flex-1">
@@ -913,19 +913,58 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                                 />
                             </div>
                         </div>
-                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-                            <button
-                                onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                            >
-                                <LayoutGrid size={16} />
-                            </button>
-                            <button
-                                onClick={() => setViewMode('table')}
-                                className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                            >
-                                <List size={16} />
-                            </button>
+                        <div className="flex items-center gap-2">
+                            {isAdmin && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setUploadToSection(null)
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.removeAttribute('webkitdirectory')
+                                                fileInputRef.current.click()
+                                            }
+                                        }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-900 text-white hover:bg-gray-800 rounded-lg transition-colors shadow-sm cursor-pointer"
+                                    >
+                                        <Upload size={14} />
+                                        Upload Files
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setUploadToSection(null)
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.setAttribute('webkitdirectory', '')
+                                                fileInputRef.current.click()
+                                            }
+                                        }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                        <Folder size={14} />
+                                        Upload Folder
+                                    </button>
+                                    <button
+                                        onClick={() => handleCreateFolder(null, null)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                        <Plus size={14} />
+                                        New Folder
+                                    </button>
+                                </>
+                            )}
+                            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <LayoutGrid size={16} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <List size={16} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1592,7 +1631,13 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                     type="file"
                     multiple
                     className="hidden"
-                    onChange={(e) => handleUpload(Array.from(e.target.files || []), uploadToSection)}
+                    onChange={(e) => {
+                        const files = Array.from(e.target.files || [])
+                        handleUpload(files, uploadToSection)
+                        // Reset so same files can be re-selected + clear webkitdirectory for next use
+                        e.target.value = ''
+                        e.target.removeAttribute('webkitdirectory')
+                    }}
                 />
             </main>
 
