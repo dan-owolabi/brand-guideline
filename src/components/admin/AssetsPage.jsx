@@ -168,8 +168,44 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                 supabase.from('assets').select('*').eq('brand_id', resolvedId).order('created_at', { ascending: false })
             ])
 
-            setSections(sectionsResult.data || [])
-            setAssets(assetsResult.data || [])
+            const rawSections = sectionsResult.data || []
+            const rawAssets = assetsResult.data || []
+
+            // Auto-migrate any uncategorized assets to a real "Other Files" section
+            const uncategorizedAssets = rawAssets.filter(a => !a.collection_id)
+            if (uncategorizedAssets.length > 0) {
+                // Check if an "Other Files" section exists, else create one
+                let otherFilesSection = rawSections.find(s => s.name === 'Other Files')
+                if (!otherFilesSection) {
+                    const newSection = {
+                        id: crypto.randomUUID(),
+                        brand_id: resolvedId,
+                        name: 'Other Files',
+                        order: rawSections.length
+                    }
+                    // Insert to DB silently
+                    supabase.from('collections').insert(newSection).then(({ error }) => {
+                        if (error) console.error('Failed to create Other Files section', error)
+                    })
+                    otherFilesSection = newSection
+                    rawSections.push(otherFilesSection)
+                }
+
+                // Update assets to belong to this section in DB silently
+                const assetIds = uncategorizedAssets.map(a => a.id)
+                supabase.from('assets')
+                    .update({ collection_id: otherFilesSection.id })
+                    .in('id', assetIds)
+                    .then(({ error }) => {
+                        if (error) console.error('Failed to migrate uncategorized assets', error)
+                    })
+
+                // Update local state
+                uncategorizedAssets.forEach(a => a.collection_id = otherFilesSection.id)
+            }
+
+            setSections(rawSections)
+            setAssets(rawAssets)
         } catch (err) {
             console.error('Failed to fetch data:', err)
         } finally {
@@ -1546,47 +1582,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                             </SortableContext>
                         </DndContext>
 
-                        {/* Uncategorized Section */}
-                        {uncategorizedAssets.length > 0 && (
-                            <section className="space-y-4">
-                                <h2 className="text-xl font-semibold text-gray-900">Other Files</h2>
-                                <div className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4' : ''}>
-                                    {/* Reuse similar logic for uncategorized if needed, but skipping complex folder logic there for now as folders should have sections */}
-                                    {viewMode === 'grid' ? (
-                                        uncategorizedAssets.map(asset => (
-                                            asset.is_folder ? (
-                                                <FolderAssetCard
-                                                    key={asset.id}
-                                                    asset={asset}
-                                                    isAdmin={isAdmin}
-                                                    onEnter={setCurrentFolderId}
-                                                    onDelete={() => handleDelete(asset.id)}
-                                                    onRename={handleUpdateTextBlock}
-                                                    onMove={(sid) => handleMoveAsset(asset.id, sid)}
-                                                    onDownload={handleDownloadFolder}
-                                                />
-                                            ) : (
-                                                <AssetCard
-                                                    key={asset.id}
-                                                    asset={asset}
-                                                    isAdmin={isAdmin}
-                                                    onDelete={() => handleDelete(asset.id)}
-                                                    onPreview={() => setPreviewAsset(asset)}
-                                                    sections={sections}
-                                                    onMove={(sectionId) => handleMoveAsset(asset.id, sectionId)}
-                                                />
-                                            )
-                                        ))
-                                    ) : (
-                                        // Table view for uncategorized
-                                        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                            {/* Simplified */}
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-                        )}
-
+                        {/* Removed hardcoded Uncategorized Section - now handled via normal sections */}
                         {/* Add Section Button - Admin Only */}
                         {isAdmin && (
                             isAddingSection ? (
