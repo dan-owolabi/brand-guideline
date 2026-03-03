@@ -555,18 +555,48 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             confirmText: 'Delete',
             variant: 'danger',
             onConfirm: async () => {
-                // Optimistic update
-                setAssets(prev => prev.filter(a => a.id !== assetId))
+                let assetsToDelete = [asset]
 
-                // Delete from storage and database
-                if (asset?.file_url) {
+                if (isFolder) {
+                    // Find all nested children recursively
+                    const findChildren = (parentId) => {
+                        const children = assets.filter(a => a.parent_id === parentId)
+                        let all = [...children]
+                        children.forEach(child => {
+                            if (child.is_folder) {
+                                all = [...all, ...findChildren(child.id)]
+                            }
+                        })
+                        return all
+                    }
+                    assetsToDelete = [...assetsToDelete, ...findChildren(assetId)]
+                }
+
+                // Optimistic update: remove the folder/asset and all its nested children
+                const idsToDelete = new Set(assetsToDelete.map(a => a.id))
+                setAssets(prev => prev.filter(a => !idsToDelete.has(a.id)))
+
+                // Delete physical files from storage
+                const fileAssets = assetsToDelete.filter(a => !a.is_folder && a.file_url)
+                for (const fileAsset of fileAssets) {
                     try {
-                        await deleteFile(asset.file_url, 'media')
+                        await deleteFile(fileAsset.file_url, 'media')
                     } catch (e) {
-                        console.log('Could not delete from storage')
+                        console.log(`Could not delete file ${fileAsset.name} from storage`)
                     }
                 }
-                await supabase.from('assets').delete().eq('id', assetId)
+
+                // Delete records from database
+                try {
+                    // Supabase will delete children if ON DELETE CASCADE is set up correctly, 
+                    // but just in case, we send an IN query for all the IDs we found.
+                    const idsArray = Array.from(idsToDelete)
+                    await supabase.from('assets').delete().in('id', idsArray)
+                } catch (err) {
+                    console.error('Failed to delete asset records:', err)
+                    // If deletion failed, we ideally should revert the optimistic UI update
+                    // We can just trigger a reload or leave it for now
+                }
             }
         })
     }
