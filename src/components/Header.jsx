@@ -31,7 +31,8 @@ export default function Header({
     sidebarOpen,
     onToggleSidebar,
     onUpdateBrand,
-    basePath
+    basePath,
+    publishMode
 }) {
     const navigate = useNavigate()
     const location = useLocation()
@@ -195,18 +196,22 @@ export default function Header({
                     className="hidden md:flex items-center gap-6 font-medium text-[15px]"
                     style={{ color: textColor }}
                 >
-                    <Link
-                        to={guidelinesLink}
-                        className={getNavLinkClass(isGuidelinesActive)}
-                    >
-                        Guidelines
-                    </Link>
-                    <Link
-                        to={assetsLink}
-                        className={getNavLinkClass(isAssetsActive)}
-                    >
-                        Assets
-                    </Link>
+                    {(isAdmin || !publishMode || publishMode === 'both' || publishMode === 'guidelines') && (
+                        <Link
+                            to={guidelinesLink}
+                            className={getNavLinkClass(isGuidelinesActive)}
+                        >
+                            Guidelines
+                        </Link>
+                    )}
+                    {(isAdmin || !publishMode || publishMode === 'both' || publishMode === 'assets') && (
+                        <Link
+                            to={assetsLink}
+                            className={getNavLinkClass(isAssetsActive)}
+                        >
+                            Assets
+                        </Link>
+                    )}
                 </nav>
 
                 {isAdmin ? (
@@ -253,20 +258,24 @@ export default function Header({
                 {/* Mobile Menu Dropdown */}
                 {mobileMenuOpen && (
                     <div className="absolute top-20 left-0 right-0 bg-white shadow-xl rounded-2xl p-4 flex flex-col gap-2 md:hidden animate-in slide-in-from-top-4 z-50 mx-4 border border-gray-100">
-                        <Link
-                            to={`${basePath}/${brand?.id}/introduction`}
-                            className={`p-3 rounded-lg font-medium transition-colors ${isGuidelinesActive ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
-                            onClick={() => setMobileMenuOpen(false)}
-                        >
-                            Guidelines
-                        </Link>
-                        <Link
-                            to={`${basePath}/${brand?.id}/assets`}
-                            className={`p-3 rounded-lg font-medium transition-colors ${isAssetsActive ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
-                            onClick={() => setMobileMenuOpen(false)}
-                        >
-                            Assets
-                        </Link>
+                        {(isAdmin || !publishMode || publishMode === 'both' || publishMode === 'guidelines') && (
+                            <Link
+                                to={`${basePath}/${brand?.id}/introduction`}
+                                className={`p-3 rounded-lg font-medium transition-colors ${isGuidelinesActive ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                                onClick={() => setMobileMenuOpen(false)}
+                            >
+                                Guidelines
+                            </Link>
+                        )}
+                        {(isAdmin || !publishMode || publishMode === 'both' || publishMode === 'assets') && (
+                            <Link
+                                to={`${basePath}/${brand?.id}/assets`}
+                                className={`p-3 rounded-lg font-medium transition-colors ${isAssetsActive ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                                onClick={() => setMobileMenuOpen(false)}
+                            >
+                                Assets
+                            </Link>
+                        )}
                         {isAdmin && (
                             <a
                                 href={viewLiveUrl}

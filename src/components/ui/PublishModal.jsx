@@ -1,23 +1,45 @@
 import { useState, useEffect } from 'react'
-import { X, Check, Globe, Loader2, AlertCircle } from 'lucide-react'
+import { X, Check, Globe, Loader2, AlertCircle, BookOpen, Image, Layers } from 'lucide-react'
 import { Button } from './Button'
+
+const PUBLISH_MODES = [
+    {
+        id: 'both',
+        label: 'Both',
+        description: 'Guidelines + Assets',
+        icon: Layers,
+    },
+    {
+        id: 'guidelines',
+        label: 'Guidelines only',
+        description: 'Hide the assets page',
+        icon: BookOpen,
+    },
+    {
+        id: 'assets',
+        label: 'Assets only',
+        description: 'Hide the guidelines',
+        icon: Image,
+    },
+]
 
 export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandName, isPublishing }) {
     const [slug, setSlug] = useState(initialSlug || '')
     const [error, setError] = useState(null)
+    const [publishMode, setPublishMode] = useState('both')
 
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
             setSlug(initialSlug || (brandName ? brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''))
             setError(null)
+            setPublishMode('both')
         }
     }, [isOpen, initialSlug, brandName])
 
     if (!isOpen) return null
 
     const handleSubmit = () => {
-        // Basic validation
         const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-')
 
         if (!cleanSlug) {
@@ -36,7 +58,7 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
         }
 
         setSlug(cleanSlug)
-        onConfirm(cleanSlug)
+        onConfirm(cleanSlug, publishMode)
     }
 
     const host = window.location.host
@@ -62,10 +84,53 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
 
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Publish your Brand</h2>
                     <p className="text-gray-500 text-sm mb-6">
-                        Choose a custom link for your brand guidelines. This will be the public URL where people can access your brand.
+                        Choose what to make public and set your brand's URL.
                     </p>
 
-                    <div className="space-y-4">
+                    <div className="space-y-5">
+                        {/* What to publish */}
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                What to publish
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {PUBLISH_MODES.map((mode) => {
+                                    const Icon = mode.icon
+                                    const isSelected = publishMode === mode.id
+                                    return (
+                                        <button
+                                            key={mode.id}
+                                            onClick={() => setPublishMode(mode.id)}
+                                            className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-center transition-all ${
+                                                isSelected
+                                                    ? 'border-green-500 bg-green-50'
+                                                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {isSelected && (
+                                                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                                    <Check size={10} className="text-white" />
+                                                </span>
+                                            )}
+                                            <Icon
+                                                size={20}
+                                                className={isSelected ? 'text-green-600' : 'text-gray-400'}
+                                            />
+                                            <div>
+                                                <p className={`text-xs font-semibold leading-tight ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
+                                                    {mode.label}
+                                                </p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">
+                                                    {mode.description}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Public Link */}
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                                 Public Link
@@ -82,7 +147,7 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                                         setError(null)
                                     }}
                                     placeholder="brand-name"
-                                    className={`w-full pl-[calc(100%-120px)] pl-32 pr-4 py-2.5 bg-gray-50 border rounded-lg text-sm font-medium outline-none transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`}
+                                    className={`w-full pr-4 py-2.5 bg-gray-50 border rounded-lg text-sm font-medium outline-none transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'}`}
                                     style={{ paddingLeft: `${Math.min((host.length + 7) * 8 + 20, 220)}px` }}
                                 />
                             </div>

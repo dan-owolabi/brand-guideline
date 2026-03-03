@@ -101,7 +101,8 @@ export function useBrandEditor(identifier) {
                     name: data.name,
                     slug: data.slug,
                     logoUrl: data.logo_url,
-                    primaryColor: data.primary_color
+                    primaryColor: data.primary_color,
+                    publishMode: data.published?.publishMode || 'both'
                 })
             } catch (err) {
                 console.error("Fetch draft error:", err)
@@ -334,7 +335,7 @@ export function useBrandEditor(identifier) {
         setSaving(true)
         try {
             const updates = {
-                published: draft,
+                published: { ...draft, publishMode: options.mode || 'both' },
             }
             if (options.slug) {
                 updates.slug = options.slug
@@ -351,10 +352,12 @@ export function useBrandEditor(identifier) {
                 throw new Error(error.message || 'Failed to publish')
             }
 
-            // If slug updated, update metadata
-            if (options.slug) {
-                setBrandMetadata(prev => ({ ...prev, slug: options.slug }))
-            }
+            // Update metadata to reflect new publish state
+            setBrandMetadata(prev => ({
+                ...prev,
+                ...(options.slug && { slug: options.slug }),
+                publishMode: options.mode || 'both'
+            }))
 
             console.log('[Publish] Success! Updated data:', data)
         } catch (err) {

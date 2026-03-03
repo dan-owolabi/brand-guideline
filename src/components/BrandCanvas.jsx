@@ -260,10 +260,10 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
         setPublishModalOpen(true)
     }
 
-    const handleConfirmPublish = async (slug) => {
+    const handleConfirmPublish = async (slug, mode) => {
         setIsPublishing(true)
         try {
-            await publish({ slug })
+            await publish({ slug, mode })
             setPublishSuccess(true)
             setPublishModalOpen(false)
             setTimeout(() => setPublishSuccess(false), 3000)
@@ -446,6 +446,7 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                 onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
                 onUpdateBrand={updateBrandMetadata}
                 basePath={basePath}
+                publishMode={isAdmin ? undefined : brandMetadata?.publishMode}
             />
 
             <div className="flex pt-20 md:pt-24 min-h-screen">

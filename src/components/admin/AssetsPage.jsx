@@ -94,9 +94,9 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         setPublishModalOpen(true)
     }
 
-    const handleConfirmPublish = async (slug) => {
+    const handleConfirmPublish = async (slug, mode) => {
         try {
-            await publish({ slug })
+            await publish({ slug, mode })
             setPublishSuccess(true)
             setPublishModalOpen(false)
             setTimeout(() => setPublishSuccess(false), 3000)
@@ -147,7 +147,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         try {
             // 1. Resolve Brand first (handle slug or ID)
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)
-            let brandQuery = supabase.from('brands').select('id, name, logo_url, primary_color, banner_url')
+            let brandQuery = supabase.from('brands').select('id, name, logo_url, primary_color, banner_url, published')
 
             if (isUuid) {
                 brandQuery = brandQuery.eq('id', identifier)
@@ -158,7 +158,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             const { data: brandData, error: brandError } = await brandQuery.single()
             if (brandError) throw brandError
 
-            setBrand(brandData)
+            setBrand({ ...brandData, publishMode: brandData.published?.publishMode || 'both' })
             const resolvedId = brandData.id
 
             // 2. Fetch Assets and Sections using resolved UUID
@@ -782,6 +782,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                 isPublishing={publishing}
                 publishSuccess={publishSuccess}
                 basePath={basePath}
+                publishMode={isAdmin ? undefined : brand?.publishMode}
             />
 
             {/* Hero Banner - Hidden when browsing a folder */}
