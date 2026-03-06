@@ -623,7 +623,7 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                                                                     e.stopPropagation()
                                                                     const rect = e.currentTarget.getBoundingClientRect()
                                                                     setAddBlockMenuPos({
-                                                                        top: rect.top + window.scrollY,
+                                                                        top: rect.top,
                                                                         left: rect.left,
                                                                         insertIndex: index + 1
                                                                     })
@@ -646,7 +646,7 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                                         onClick={(e) => {
                                             const rect = e.currentTarget.getBoundingClientRect()
                                             setAddBlockMenuPos({
-                                                top: rect.top + window.scrollY,
+                                                top: rect.top,
                                                 left: rect.left,
                                                 insertIndex: 0
                                             })
