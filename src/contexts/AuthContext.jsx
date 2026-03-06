@@ -42,6 +42,7 @@ export function AuthProvider({ children }) {
     const [currentAccount, setCurrentAccount] = useState(null)
     const [loading, setLoading] = useState(true)
     const [initialized, setInitialized] = useState(false)
+    const [accountsLoaded, setAccountsLoaded] = useState(false)
 
     // Initialize auth state
     useEffect(() => {
@@ -67,6 +68,7 @@ export function AuthProvider({ children }) {
                 } else {
                     setAccounts([])
                     setCurrentAccount(null)
+                    setAccountsLoaded(true)
                     setLoading(false)
                 }
             } catch (err) {
@@ -76,6 +78,7 @@ export function AuthProvider({ children }) {
                 setUser(null)
                 setAccounts([])
                 setCurrentAccount(null)
+                setAccountsLoaded(true)
                 setLoading(false)
             } finally {
                 if (isActive) setInitialized(true)
@@ -95,6 +98,7 @@ export function AuthProvider({ children }) {
                 } else {
                     setAccounts([])
                     setCurrentAccount(null)
+                    setAccountsLoaded(true)
                     setLoading(false)
                 }
             }
@@ -131,6 +135,7 @@ export function AuthProvider({ children }) {
             if (error) {
                 console.error('Failed to fetch accounts:', error)
                 setAccounts([])
+                setAccountsLoaded(true)
                 setLoading(false)
                 return
             }
@@ -152,6 +157,7 @@ export function AuthProvider({ children }) {
             console.error('Failed to fetch accounts:', err)
             setAccounts([])
         } finally {
+            setAccountsLoaded(true)
             setLoading(false)
         }
     }
@@ -258,6 +264,7 @@ export function AuthProvider({ children }) {
         currentAccount,
         loading,
         initialized,
+        accountsLoaded,
 
         // Auth methods
         signUp,

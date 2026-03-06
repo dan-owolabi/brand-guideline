@@ -43,7 +43,7 @@ export default function AuthenticatedApp() {
             {/* Onboarding for users without accounts */}
             <Route path="/onboarding" element={
                 <RequireAuth>
-                    {accounts.length === 0 ? <OnboardingFlow /> : <Navigate to="/dashboard" replace />}
+                    <OnboardingGuard />
                 </RequireAuth>
             } />
 
@@ -114,10 +114,10 @@ function RequireAuth({ children }) {
  * Higher-order component to require an account - redirects to onboarding if none
  */
 function RequireAccount({ children }) {
-    const { accounts, loading, initialized } = useAuth()
+    const { accounts, loading, initialized, accountsLoaded } = useAuth()
 
-    // Still loading auth state
-    if (!initialized || loading) {
+    // Still loading auth state or accounts
+    if (!initialized || loading || !accountsLoaded) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
@@ -131,6 +131,28 @@ function RequireAccount({ children }) {
     }
 
     return children
+}
+
+/**
+ * Guard for the onboarding route - waits for accounts to load before deciding
+ */
+function OnboardingGuard() {
+    const { accounts, loading, initialized, accountsLoaded } = useAuth()
+
+    if (!initialized || loading || !accountsLoaded) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+        )
+    }
+
+    // Only show onboarding if user truly has no accounts
+    if (accounts.length === 0) {
+        return <OnboardingFlow />
+    }
+
+    return <Navigate to="/dashboard" replace />
 }
 
 /**
