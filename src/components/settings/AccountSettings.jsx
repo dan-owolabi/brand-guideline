@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { supabase, sendInviteEmail } from '../../lib/supabase'
 import { getBrandUrl } from '../../lib/domainResolver'
 import {
     Settings, Users, Globe, CreditCard, ArrowLeft,
@@ -567,11 +567,12 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
                 setInviteError(error.code === '23505' ? 'Already invited.' : error.message)
                 return
             }
-            // Send invite email via Supabase admin so the person gets a real email
+            // Send invite email via Supabase Auth REST API
             if (inviteRow?.token) {
-                await supabase.auth.admin.inviteUserByEmail(inviteEmail.trim().toLowerCase(), {
-                    redirectTo: `${window.location.origin}/invite/${inviteRow.token}`
-                })
+                await sendInviteEmail(
+                    inviteEmail.trim().toLowerCase(),
+                    `${window.location.origin}/invite/${inviteRow.token}`
+                )
             }
             setInviteEmail('')
             setShowInviteForm(false)
@@ -949,11 +950,12 @@ function TeamSettings({ account }) {
                 return
             }
 
-            // Send invite email so the person gets a real email with a sign-in link
+            // Send invite email via Supabase Auth REST API
             if (data?.token) {
-                await supabase.auth.admin.inviteUserByEmail(inviteEmail.trim().toLowerCase(), {
-                    redirectTo: `${window.location.origin}/invite/${data.token}`
-                })
+                await sendInviteEmail(
+                    inviteEmail.trim().toLowerCase(),
+                    `${window.location.origin}/invite/${data.token}`
+                )
             }
 
             setInviteEmail('')

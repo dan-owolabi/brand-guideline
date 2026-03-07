@@ -7,6 +7,33 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
+/**
+ * Send an invite email via Supabase Auth REST API.
+ * auth.admin.inviteUserByEmail() is unreliable from browser clients,
+ * so we call the GoTrue /invite endpoint directly.
+ */
+export async function sendInviteEmail(email, redirectTo) {
+    const url = new URL(`${supabaseUrl}/auth/v1/invite`)
+    if (redirectTo) url.searchParams.set('redirect_to', redirectTo)
+
+    const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+        },
+        body: JSON.stringify({ email })
+    })
+
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.message || body.msg || `Invite email failed (${res.status})`)
+    }
+
+    return res.json()
+}
+
 // Helper to upload file to storage (with automatic compression for images)
 export async function uploadFile(file, bucket = 'media') {
     // Compress images before upload
