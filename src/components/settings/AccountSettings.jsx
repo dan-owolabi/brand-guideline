@@ -4,19 +4,18 @@
  * Manage account details, domains, team members, billing, and all workspaces
  */
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase, sendInviteEmail } from '../../lib/supabase'
 import { getBrandUrl } from '../../lib/domainResolver'
 import {
     Settings, Users, Globe, ArrowLeft,
-    Save, Loader2, Copy, Check, Plus, Trash2, Mail,
+    Save, Loader2, Copy, Check, Plus, Mail,
     ExternalLink, AlertCircle, X
 } from 'lucide-react'
 
 export default function AccountSettings() {
-    const { user, accounts, currentAccount, createAccount, updateAccount, deleteAccount, switchAccount, refreshAccounts, accountsLoaded } = useAuth()
-    const navigate = useNavigate()
+    const { user, accounts, currentAccount, createAccount, deleteAccount, switchAccount, refreshAccounts, accountsLoaded } = useAuth()
 
     // view: 'profile' | 'workspace'
     const [view, setView] = useState('profile')
@@ -26,10 +25,20 @@ export default function AccountSettings() {
     const [newWsName, setNewWsName] = useState('')
     const [creating, setCreating] = useState(false)
 
-    // Ensure accounts are fresh when settings page loads
+    // Ensure accounts are fresh when settings page loads (only if not already loaded)
     useEffect(() => {
-        refreshAccounts?.()
+        if (!accountsLoaded || accounts.length === 0) {
+            refreshAccounts?.()
+        }
     }, [])
+
+    // If selected workspace disappears (e.g. after refresh), fall back to profile
+    useEffect(() => {
+        if (view === 'workspace' && selectedWsId && !selectedWs && accountsLoaded) {
+            setView('profile')
+            setSelectedWsId(null)
+        }
+    }, [accounts, selectedWsId, selectedWs, view, accountsLoaded])
 
     // Select first workspace by default when switching to workspace view
     const selectedWs = accounts.find(a => a.id === selectedWsId) || null
@@ -233,7 +242,7 @@ function WorkspaceGeneralTab({ workspace, onUpdate, onDelete }) {
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [confirmDelete, setConfirmDelete] = useState(false)
-    const { updateAccount, accounts, isOwner } = useAuth()
+    const { updateAccount, accounts } = useAuth()
     const canEdit = workspace.role === 'owner'
 
     const handleSave = async () => {

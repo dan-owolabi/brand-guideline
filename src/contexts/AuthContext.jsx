@@ -89,7 +89,7 @@ export function AuthProvider({ children }) {
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
+            async (_event, session) => {
                 setSession(session)
                 setUser(session?.user ?? null)
 
@@ -202,7 +202,7 @@ export function AuthProvider({ children }) {
             setCurrentAccount(savedAccount || userAccounts[0] || null)
         } catch (err) {
             console.error('Failed to fetch accounts:', err)
-            setAccounts([])
+            // Do NOT clear existing accounts on a transient error — only mark as loaded
         } finally {
             setAccountsLoaded(true)
             setLoading(false)
