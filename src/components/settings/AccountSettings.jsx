@@ -521,11 +521,21 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
     const loadMembers = async () => {
         setLoadingMembers(true)
         try {
-            const { data, error } = await supabase
+            const { data: membersRaw, error } = await supabase
                 .from('account_members')
-                .select(`id, role, created_at, user:users(id, email, avatar_url)`)
+                .select('id, role, created_at, user_id')
                 .eq('account_id', workspace.id)
-            if (!error) setMembers(data || [])
+            if (!error && membersRaw?.length) {
+                const { data: usersData } = await supabase
+                    .from('users').select('id, email, avatar_url')
+                    .in('id', membersRaw.map(m => m.user_id))
+                setMembers(membersRaw.map(m => ({
+                    ...m,
+                    user: usersData?.find(u => u.id === m.user_id) || { id: m.user_id, email: null }
+                })))
+            } else if (!error) {
+                setMembers([])
+            }
         } catch (e) {
             console.error(e)
         } finally {
@@ -880,22 +890,23 @@ function TeamSettings({ account }) {
 
     const loadMembers = async () => {
         try {
-            const { data, error } = await supabase
+            const { data: membersData, error } = await supabase
                 .from('account_members')
-                .select(`
-                    id,
-                    role,
-                    created_at,
-                    user:users (
-                        id,
-                        email,
-                        avatar_url
-                    )
-                `)
+                .select('id, role, created_at, user_id')
                 .eq('account_id', account.id)
 
             if (error) throw error
-            setMembers(data || [])
+            if (!membersData?.length) { setMembers([]); return }
+
+            const { data: usersData } = await supabase
+                .from('users')
+                .select('id, email, avatar_url')
+                .in('id', membersData.map(m => m.user_id))
+
+            setMembers(membersData.map(m => ({
+                ...m,
+                user: usersData?.find(u => u.id === m.user_id) || { id: m.user_id, email: null }
+            })))
         } catch (err) {
             console.error('Failed to load members:', err)
         } finally {
@@ -1119,6 +1130,8 @@ function TeamSettings({ account }) {
                     <div className="flex justify-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                     </div>
+                ) : members.length === 0 ? (
+                    <p className="text-sm text-gray-400 py-4">No members found.</p>
                 ) : (
                     <div className="space-y-3">
                         {members.map(member => (
