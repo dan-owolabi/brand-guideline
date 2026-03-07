@@ -17,13 +17,12 @@ import {
 export default function AccountSettings() {
     const { tab = 'general' } = useParams()
     const navigate = useNavigate()
-    const { currentAccount, isOwner, refreshAccounts } = useAuth()
+    const { currentAccount, isOwner, refreshAccounts, user } = useAuth()
 
     const tabs = [
         { id: 'general', label: 'General', icon: Settings },
         { id: 'workspaces', label: 'Workspaces', icon: Layers },
         { id: 'domains', label: 'Domains', icon: Globe },
-        { id: 'team', label: 'Team', icon: Users },
         { id: 'billing', label: 'Billing', icon: CreditCard }
     ]
 
@@ -51,7 +50,7 @@ export default function AccountSettings() {
                             <h1 className="text-xl font-semibold text-gray-900">
                                 Account Settings
                             </h1>
-                            <p className="text-sm text-gray-500">{currentAccount.name}</p>
+                            <p className="text-sm text-gray-500">{user?.email}</p>
                         </div>
                     </div>
                 </div>
@@ -84,7 +83,6 @@ export default function AccountSettings() {
                         {tab === 'general' && <GeneralSettings account={currentAccount} onUpdate={refreshAccounts} />}
                         {tab === 'workspaces' && <WorkspacesSettings />}
                         {tab === 'domains' && <DomainSettings account={currentAccount} onUpdate={refreshAccounts} />}
-                        {tab === 'team' && <TeamSettings account={currentAccount} />}
                         {tab === 'billing' && <BillingSettings account={currentAccount} />}
                     </div>
                 </div>
