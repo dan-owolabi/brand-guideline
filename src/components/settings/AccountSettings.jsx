@@ -196,11 +196,13 @@ function GeneralSettings({ account, onUpdate }) {
    Workspaces Settings — full CRUD + per-workspace team management
 ───────────────────────────────────────────────────────────────────────────── */
 function WorkspacesSettings() {
-    const { accounts, currentAccount, createAccount, updateAccount, deleteAccount, switchAccount, user, refreshAccounts } = useAuth()
+    const { accounts, currentAccount, createAccount, updateAccount, deleteAccount, switchAccount, user, refreshAccounts, accountsLoaded } = useAuth()
+    const [refreshing, setRefreshing] = useState(false)
 
     // Ensure accounts are fresh when this tab is opened
     useEffect(() => {
-        refreshAccounts?.()
+        setRefreshing(true)
+        Promise.resolve(refreshAccounts?.()).finally(() => setRefreshing(false))
     }, [])
 
     // Create modal
@@ -280,7 +282,9 @@ function WorkspacesSettings() {
                 <div>
                     <h2 className="text-lg font-semibold text-gray-900">Workspaces</h2>
                     <p className="text-sm text-gray-500 mt-0.5">
-                        {accounts.length} workspace{accounts.length !== 1 ? 's' : ''} you belong to
+                        {refreshing || !accountsLoaded
+                            ? 'Loading...'
+                            : `${accounts.length} workspace${accounts.length !== 1 ? 's' : ''} you belong to`}
                     </p>
                 </div>
                 <button
@@ -293,7 +297,10 @@ function WorkspacesSettings() {
             </div>
 
             {/* Workspace list */}
-            {accounts.map(ws => (
+            {(refreshing || !accountsLoaded) ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+            ) : null}
+            {!refreshing && accountsLoaded && accounts.map(ws => (
                 <div key={ws.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                     {/* Workspace row */}
                     <div className="flex items-center gap-4 p-4">
