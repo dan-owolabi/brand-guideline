@@ -299,14 +299,14 @@ function WorkspacesSettings() {
                 <div key={ws.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                     {/* Workspace row */}
                     <div className="flex items-center gap-4 p-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                             {ws.name?.charAt(0)?.toUpperCase() || 'W'}
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="font-medium text-gray-900 truncate">{ws.name}</p>
                                 {ws.id === currentAccount?.id && (
-                                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                                    <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-medium">
                                         Active
                                     </span>
                                 )}
@@ -610,7 +610,7 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
                     {isOwner && !showInviteForm && (
                         <button
                             onClick={() => setShowInviteForm(true)}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-pink-600 hover:text-pink-800 transition-colors"
                         >
                             <Plus size={12} /> Invite
                         </button>
@@ -672,7 +672,7 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
                     <div className="space-y-1">
                         {members.map(member => (
                             <div key={member.id} className="flex items-center gap-3 p-2 bg-white rounded-lg border border-gray-100">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
                                     {member.user?.email?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -683,7 +683,7 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
                                     <p className="text-xs text-gray-400 truncate">{member.user?.email}</p>
                                 </div>
                                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                    member.role === 'owner' ? 'bg-purple-100 text-purple-700'
+                                    member.role === 'owner' ? 'bg-pink-100 text-pink-700'
                                     : member.role === 'editor' ? 'bg-blue-100 text-blue-700'
                                     : 'bg-gray-100 text-gray-600'
                                 }`}>{member.role}</span>
@@ -1126,7 +1126,7 @@ function TeamSettings({ account }) {
                                 key={member.id}
                                 className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50"
                             >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white font-medium">
                                     {member.user?.email?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1139,7 +1139,7 @@ function TeamSettings({ account }) {
                                     <p className="text-sm text-gray-500 truncate">{member.user?.email}</p>
                                 </div>
                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${member.role === 'owner'
-                                    ? 'bg-purple-100 text-purple-700'
+                                    ? 'bg-pink-100 text-pink-700'
                                     : member.role === 'editor'
                                         ? 'bg-blue-100 text-blue-700'
                                         : 'bg-gray-100 text-gray-700'

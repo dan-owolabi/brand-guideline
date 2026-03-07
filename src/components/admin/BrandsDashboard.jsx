@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getBrandUrl } from '../../lib/domainResolver'
 import {
     Plus, Settings, Trash2, Loader2, ExternalLink,
-    Compass, Briefcase, LayoutGrid, Upload, Type, ChevronDown, LogOut, User, ArrowRightLeft
+    Compass, Briefcase, LayoutGrid, Upload, Type, ChevronDown, LogOut, User, ArrowRightLeft, MoreHorizontal, Pencil
 } from 'lucide-react'
 
 const GOOGLE_FONTS = [
@@ -40,6 +40,7 @@ export default function BrandsDashboard() {
     const [showTransferModal, setShowTransferModal] = useState(false)
     const [transferBrandId, setTransferBrandId] = useState(null)
     const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
+    const [openMenuId, setOpenMenuId] = useState(null)
 
     const isLegacyAdminRoute = location.pathname.startsWith('/admin')
     const getEditorPath = (brandId, pageSlug = 'introduction') => (
@@ -453,7 +454,7 @@ export default function BrandsDashboard() {
                             onClick={() => setShowWorkspaceMenu(v => !v)}
                             className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600"
                         >
-                            <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                            <div className="w-6 h-6 rounded bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-bold">
                                 {currentAccount?.name?.charAt(0) || 'A'}
                             </div>
                             <span className="flex-1 text-left truncate">{currentAccount?.name}</span>
@@ -481,7 +482,7 @@ export default function BrandsDashboard() {
                                     <div className="border-t border-gray-100">
                                         <button
                                             onClick={() => { setShowCreateWorkspace(true); setShowWorkspaceMenu(false) }}
-                                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left text-indigo-600 font-medium"
+                                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left text-pink-600 font-medium"
                                         >
                                             <Plus size={14} />
                                             Create New Workspace
@@ -494,7 +495,7 @@ export default function BrandsDashboard() {
 
                     {/* User Profile */}
                     <div className="flex items-center gap-3 p-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-medium">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-pink-500 to-rose-500 flex items-center justify-center text-white text-sm font-medium">
                             {user?.email?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -554,7 +555,7 @@ export default function BrandsDashboard() {
                         </p>
                         <button
                             onClick={() => setShowNewModal(true)}
-                            className="text-indigo-600 font-medium hover:underline"
+                            className="text-pink-600 font-medium hover:underline"
                         >
                             Create now
                         </button>
@@ -575,28 +576,58 @@ export default function BrandsDashboard() {
                                         backgroundImage: `linear-gradient(135deg, ${brand.primary_color}20 0%, ${brand.primary_color}80 100%)`
                                     }}
                                 >
-                                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                        <button
-                                            className="p-2 bg-white/90 backdrop-blur rounded-full hover:bg-white text-gray-600 transition-colors shadow-sm"
-                                            onClick={(e) => { e.stopPropagation(); handleEditClick(brand) }}
-                                        >
-                                            <Settings size={16} />
-                                        </button>
-                                        {accounts.length > 1 && (
+                                    {/* ⋯ Menu */}
+                                    <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="relative" onClick={e => e.stopPropagation()}>
                                             <button
-                                                className="p-2 bg-white/90 backdrop-blur rounded-full hover:bg-white text-gray-600 transition-colors shadow-sm"
-                                                title="Transfer to another workspace"
-                                                onClick={(e) => { e.stopPropagation(); setTransferBrandId(brand.id); setShowTransferModal(true) }}
+                                                className="p-1.5 bg-white/90 backdrop-blur rounded-lg hover:bg-white text-gray-700 transition-colors shadow-sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setOpenMenuId(openMenuId === brand.id ? null : brand.id)
+                                                }}
                                             >
-                                                <ArrowRightLeft size={16} />
+                                                <MoreHorizontal size={16} />
                                             </button>
-                                        )}
-                                        <button
-                                            className="p-2 bg-white/90 backdrop-blur rounded-full hover:bg-white text-red-500 transition-colors shadow-sm"
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(brand.id, brand.name) }}
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                            {openMenuId === brand.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                                    <div className="absolute right-0 top-8 z-20 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1 text-sm">
+                                                        <button
+                                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                            onClick={() => { setOpenMenuId(null); handleEditClick(brand) }}
+                                                        >
+                                                            <Pencil size={14} /> Edit settings
+                                                        </button>
+                                                        {brand.published && (
+                                                            <a
+                                                                href={getBrandUrl(brand.slug || brand.id)}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                                onClick={() => setOpenMenuId(null)}
+                                                            >
+                                                                <ExternalLink size={14} /> View live
+                                                            </a>
+                                                        )}
+                                                        {accounts.length > 1 && (
+                                                            <button
+                                                                className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                                onClick={() => { setOpenMenuId(null); setTransferBrandId(brand.id); setShowTransferModal(true) }}
+                                                            >
+                                                                <ArrowRightLeft size={14} /> Transfer
+                                                            </button>
+                                                        )}
+                                                        <div className="my-1 border-t border-gray-100" />
+                                                        <button
+                                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-red-600 hover:bg-red-50 transition-colors"
+                                                            onClick={() => { setOpenMenuId(null); handleDeleteClick(brand.id, brand.name) }}
+                                                        >
+                                                            <Trash2 size={14} /> Delete
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Banner as Full Background */}
@@ -632,23 +663,6 @@ export default function BrandsDashboard() {
                                         {/* {(brand.draft?.sections?.length || 0)} sections */}
                                     </div>
 
-                                    {/* Hover "Enter" Action */}
-                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 opacity-0 group-hover:opacity-100 transition-opacity gap-3">
-                                        <div className="font-medium text-gray-900 border border-gray-200 bg-white px-6 py-2 rounded-full shadow-sm hover:bg-gray-50 flex items-center gap-2">
-                                            Edit Project
-                                        </div>
-                                        {brand.published && (
-                                            <a
-                                                href={getBrandUrl(brand.slug || brand.id)}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="font-medium text-indigo-600 bg-indigo-50 px-6 py-2 rounded-full hover:bg-indigo-100 flex items-center gap-2"
-                                            >
-                                                View Live <ExternalLink size={16} />
-                                            </a>
-                                        )}
-                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -742,7 +756,7 @@ export default function BrandsDashboard() {
                                 <div className="mb-4">
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className={`w-full border-2 border-dashed rounded-xl p-4 flex items-center justify-center gap-3 cursor-pointer transition-colors ${newBrand.customFontUrl ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+                                        className={`w-full border-2 border-dashed rounded-xl p-4 flex items-center justify-center gap-3 cursor-pointer transition-colors ${newBrand.customFontUrl ? 'border-pink-500 bg-pink-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
                                     >
                                         <input
                                             type="file"
@@ -755,8 +769,8 @@ export default function BrandsDashboard() {
                                             <Loader2 className="animate-spin text-gray-400" />
                                         ) : newBrand.customFontUrl ? (
                                             <>
-                                                <Type className="text-indigo-600" />
-                                                <span className="text-indigo-900 font-medium">Custom Font: {newBrand.customFontName}</span>
+                                                <Type className="text-pink-600" />
+                                                <span className="text-gray-900 font-medium">Custom Font: {newBrand.customFontName}</span>
                                             </>
                                         ) : (
                                             <>
@@ -891,7 +905,7 @@ export default function BrandsDashboard() {
                                 <div className="mb-4">
                                     <div
                                         onClick={() => editFileInputRef.current?.click()}
-                                        className={`w-full border-2 border-dashed rounded-xl p-4 flex items-center justify-center gap-3 cursor-pointer transition-colors ${editBrand.customFontUrl ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+                                        className={`w-full border-2 border-dashed rounded-xl p-4 flex items-center justify-center gap-3 cursor-pointer transition-colors ${editBrand.customFontUrl ? 'border-pink-500 bg-pink-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
                                     >
                                         <input
                                             type="file"
@@ -904,8 +918,8 @@ export default function BrandsDashboard() {
                                             <Loader2 className="animate-spin text-gray-400" />
                                         ) : editBrand.customFontUrl ? (
                                             <>
-                                                <Type className="text-indigo-600" />
-                                                <span className="text-indigo-900 font-medium">Custom Font: {editBrand.customFontName || 'Uploaded'}</span>
+                                                <Type className="text-pink-600" />
+                                                <span className="text-gray-900 font-medium">Custom Font: {editBrand.customFontName || 'Uploaded'}</span>
                                             </>
                                         ) : (
                                             <>
@@ -1027,7 +1041,7 @@ export default function BrandsDashboard() {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-6">
-                            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div className="w-12 h-12 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <ArrowRightLeft size={24} />
                             </div>
                             <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">Transfer Project</h3>
@@ -1041,7 +1055,7 @@ export default function BrandsDashboard() {
                                         onClick={() => handleTransferBrand(transferBrandId, account.id)}
                                         className="flex items-center gap-3 w-full p-3 hover:bg-gray-50 rounded-xl text-sm text-left border border-gray-200 transition-colors"
                                     >
-                                        <div className="w-8 h-8 rounded bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                        <div className="w-8 h-8 rounded bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-bold">
                                             {account.name?.charAt(0) || 'A'}
                                         </div>
                                         <span className="font-medium text-gray-900">{account.name}</span>
