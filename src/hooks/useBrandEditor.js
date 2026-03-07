@@ -78,17 +78,38 @@ export function useBrandEditor(identifier) {
                     fetchedBrandIdRef.current = data.id
                 }
 
-                // If no sections exist, seed with defaults
+                // Helper: does a draft have any real text/media content in its blocks?
+                const hasContent = (draft) =>
+                    draft?.sections?.some(s =>
+                        s.blocks?.some(b =>
+                            b.content?.text || b.data?.text ||
+                            b.content?.src || b.content?.url ||
+                            (b.content?.items && b.content.items.some(i => i))
+                        )
+                    )
+
                 const existingDraft = data.draft || data.published || { tokens: {}, sections: [] }
                 let finalDraft = existingDraft
 
                 if (!existingDraft.sections || existingDraft.sections.length === 0) {
-                    const defaultDraft = getDefaultDraft()
-                    finalDraft = defaultDraft
-                    // Save defaults to database
+                    // No sections at all — seed from published if available, else defaults
+                    if (hasContent(data.published)) {
+                        finalDraft = data.published
+                    } else {
+                        const defaultDraft = getDefaultDraft()
+                        finalDraft = defaultDraft
+                    }
+                    // Save to database
                     await supabase
                         .from('brands')
-                        .update({ draft: defaultDraft })
+                        .update({ draft: finalDraft })
+                        .eq('id', data.id)
+                } else if (!hasContent(existingDraft) && hasContent(data.published)) {
+                    // Draft has sections but all blocks are empty — restore from published
+                    finalDraft = data.published
+                    await supabase
+                        .from('brands')
+                        .update({ draft: data.published })
                         .eq('id', data.id)
                 }
 
