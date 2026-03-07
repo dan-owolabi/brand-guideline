@@ -115,10 +115,12 @@ function RequireAuth({ children }) {
 }
 
 /**
- * Higher-order component to require an account - redirects to onboarding if none
+ * Higher-order component to require an account.
+ * Waits for account loading to finish, then renders children.
+ * Does NOT redirect to onboarding — the dashboard handles the no-workspace state.
  */
 function RequireAccount({ children }) {
-    const { accounts, loading, initialized, accountsLoaded } = useAuth()
+    const { loading, initialized, accountsLoaded } = useAuth()
 
     // Still loading auth state or accounts
     if (!initialized || loading || !accountsLoaded) {
@@ -127,11 +129,6 @@ function RequireAccount({ children }) {
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
         )
-    }
-
-    // No accounts - redirect to onboarding
-    if (accounts.length === 0) {
-        return <Navigate to="/onboarding" replace />
     }
 
     return children

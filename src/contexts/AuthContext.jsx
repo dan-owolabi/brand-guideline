@@ -141,15 +141,60 @@ export function AuthProvider({ children }) {
             }
 
             const userAccounts = (data || [])
-                .filter(m => m.account) // Filter out null accounts
-                .map(m => ({
-                    ...m.account,
-                    role: m.role
-                }))
+                .filter(m => m.account)
+                .map(m => ({ ...m.account, role: m.role }))
+
+            // No accounts found — auto-create a default one so the user
+            // is never stuck on the onboarding screen unnecessarily.
+            if (userAccounts.length === 0) {
+                try {
+                    const { data: userData } = await supabase.auth.getUser()
+                    const email = userData?.user?.email || 'user@example.com'
+                    const namePart = email.split('@')[0]
+                    const slug = namePart.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)
+                        + '-' + userId.slice(0, 8)
+
+                    const { data: newAccount, error: acctErr } = await supabase
+                        .from('accounts')
+                        .insert({ name: namePart, slug })
+                        .select()
+                        .single()
+
+                    if (!acctErr && newAccount) {
+                        await supabase
+                            .from('account_members')
+                            .insert({ account_id: newAccount.id, user_id: userId, role: 'owner' })
+
+                        const enriched = { ...newAccount, role: 'owner' }
+                        setAccounts([enriched])
+                        setCurrentAccount(enriched)
+                        localStorage.setItem('currentAccountId', enriched.id)
+                        return
+                    }
+
+                    // Insert failed (e.g. slug conflict from a concurrent call) —
+                    // retry the fetch so we pick up whatever was just created.
+                    const { data: retryData } = await supabase
+                        .from('account_members')
+                        .select(`role, account:accounts (id, name, slug, logo_url, is_published, custom_domain)`)
+                        .eq('user_id', userId)
+                    const retryAccounts = (retryData || [])
+                        .filter(m => m.account)
+                        .map(m => ({ ...m.account, role: m.role }))
+                    if (retryAccounts.length > 0) {
+                        setAccounts(retryAccounts)
+                        const savedId = localStorage.getItem('currentAccountId')
+                        setCurrentAccount(retryAccounts.find(a => a.id === savedId) || retryAccounts[0])
+                        return
+                    }
+                } catch (autoErr) {
+                    console.error('Auto-create account failed:', autoErr)
+                }
+            }
 
             setAccounts(userAccounts)
 
-            // Set current account (first one or from localStorage)
+            // Restore last selected account from localStorage
             const savedAccountId = localStorage.getItem('currentAccountId')
             const savedAccount = userAccounts.find(a => a.id === savedAccountId)
             setCurrentAccount(savedAccount || userAccounts[0] || null)

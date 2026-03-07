@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getBrandUrl } from '../../lib/domainResolver'
 import {
     Plus, Settings, Trash2, Loader2, ExternalLink,
-    Compass, Briefcase, LayoutGrid, Upload, Type, ChevronDown, LogOut, User
+    Compass, Briefcase, LayoutGrid, Upload, Type, ChevronDown, LogOut, User, ArrowRightLeft
 } from 'lucide-react'
 
 const GOOGLE_FONTS = [
@@ -34,6 +34,11 @@ export default function BrandsDashboard() {
     const [editingBrandId, setEditingBrandId] = useState(null)
     const [filter, setFilter] = useState('all')
     const [deleteConfirm, setDeleteConfirm] = useState({ show: false, brandId: null, brandName: '' })
+    const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
+    const [createWorkspaceName, setCreateWorkspaceName] = useState('')
+    const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+    const [showTransferModal, setShowTransferModal] = useState(false)
+    const [transferBrandId, setTransferBrandId] = useState(null)
 
     const isLegacyAdminRoute = location.pathname.startsWith('/admin')
     const getEditorPath = (brandId, pageSlug = 'introduction') => (
@@ -90,7 +95,7 @@ export default function BrandsDashboard() {
     const editFileInputRef = useRef(null)
     const editBannerInputRef = useRef(null)
 
-    const { user, currentAccount, accounts, switchAccount, signOut, canEdit } = useAuth()
+    const { user, currentAccount, accounts, switchAccount, signOut, canEdit, refreshAccounts } = useAuth()
 
     useEffect(() => {
         loadBrands()
@@ -295,10 +300,112 @@ export default function BrandsDashboard() {
         }
     }
 
+    const handleCreateWorkspace = async () => {
+        if (!createWorkspaceName.trim()) return
+        setCreatingWorkspace(true)
+        try {
+            const slug = createWorkspaceName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
+            const { data: account, error: accountError } = await supabase
+                .from('accounts')
+                .insert({ name: createWorkspaceName.trim(), slug })
+                .select()
+                .single()
+            if (accountError) throw accountError
+
+            const { error: memberError } = await supabase
+                .from('account_members')
+                .insert({ account_id: account.id, user_id: user.id, role: 'owner' })
+            if (memberError) throw memberError
+
+            // Refresh accounts and switch to new one
+            await refreshAccounts()
+            switchAccount(account.id)
+            setShowCreateWorkspace(false)
+            setCreateWorkspaceName('')
+        } catch (err) {
+            alert('Failed to create workspace: ' + err.message)
+        } finally {
+            setCreatingWorkspace(false)
+        }
+    }
+
+    const handleTransferBrand = async (brandId, targetAccountId) => {
+        try {
+            const { error } = await supabase
+                .from('brands')
+                .update({ account_id: targetAccountId })
+                .eq('id', brandId)
+            if (error) throw error
+            setShowTransferModal(false)
+            setTransferBrandId(null)
+            loadBrands()
+        } catch (err) {
+            alert('Failed to transfer brand: ' + err.message)
+        }
+    }
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+        )
+    }
+
+    if (!currentAccount) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+                <div className="text-center bg-white border border-gray-200 rounded-2xl p-10 shadow-sm max-w-md w-full">
+                    <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-5">
+                        <Briefcase size={24} className="text-gray-400" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Create your first workspace</h2>
+                    <p className="text-sm text-gray-500 mb-7">
+                        A workspace holds your brand guidelines. Give it your company or team name.
+                    </p>
+                    <button
+                        onClick={() => setShowCreateWorkspace(true)}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-colors"
+                    >
+                        <Plus size={18} />
+                        Create workspace
+                    </button>
+                </div>
+
+                {/* Create Workspace Modal */}
+                {showCreateWorkspace && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                            <div className="p-6">
+                                <h3 className="text-lg font-bold text-gray-900 mb-4">Create New Workspace</h3>
+                                <input
+                                    type="text"
+                                    placeholder="Workspace name"
+                                    value={createWorkspaceName}
+                                    onChange={(e) => setCreateWorkspaceName(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 mb-4"
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
+                                />
+                                <div className="flex gap-3 justify-end">
+                                    <button
+                                        onClick={() => { setShowCreateWorkspace(false); setCreateWorkspaceName('') }}
+                                        className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors bg-gray-50 hover:bg-gray-100 rounded-xl"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleCreateWorkspace}
+                                        disabled={creatingWorkspace || !createWorkspaceName.trim()}
+                                        className="px-5 py-2.5 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all shadow-sm disabled:opacity-50"
+                                    >
+                                        {creatingWorkspace ? 'Creating...' : 'Create'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         )
     }
@@ -339,32 +446,39 @@ export default function BrandsDashboard() {
                 </div>
 
                 <div className="mt-auto p-4 border-t border-gray-100 space-y-2">
-                    {/* Account Switcher */}
-                    {accounts.length > 1 && (
-                        <div className="relative group">
-                            <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600">
-                                <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                                    {currentAccount?.name?.charAt(0) || 'A'}
-                                </div>
-                                <span className="flex-1 text-left truncate">{currentAccount?.name}</span>
-                                <ChevronDown size={14} />
-                            </button>
-                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                                {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
-                                    <button
-                                        key={account.id}
-                                        onClick={() => switchAccount(account.id)}
-                                        className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left"
-                                    >
-                                        <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
-                                            {account.name?.charAt(0) || 'A'}
-                                        </div>
-                                        <span className="truncate">{account.name}</span>
-                                    </button>
-                                ))}
+                    {/* Account Switcher - always visible */}
+                    <div className="relative group">
+                        <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600">
+                            <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                {currentAccount?.name?.charAt(0) || 'A'}
+                            </div>
+                            <span className="flex-1 text-left truncate">{currentAccount?.name}</span>
+                            <ChevronDown size={14} />
+                        </button>
+                        <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                            {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
+                                <button
+                                    key={account.id}
+                                    onClick={() => switchAccount(account.id)}
+                                    className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left"
+                                >
+                                    <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
+                                        {account.name?.charAt(0) || 'A'}
+                                    </div>
+                                    <span className="truncate">{account.name}</span>
+                                </button>
+                            ))}
+                            <div className="border-t border-gray-100">
+                                <button
+                                    onClick={() => setShowCreateWorkspace(true)}
+                                    className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left text-indigo-600 font-medium"
+                                >
+                                    <Plus size={14} />
+                                    Create New Workspace
+                                </button>
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     {/* User Profile */}
                     <div className="flex items-center gap-3 p-2">
@@ -456,6 +570,15 @@ export default function BrandsDashboard() {
                                         >
                                             <Settings size={16} />
                                         </button>
+                                        {accounts.length > 1 && (
+                                            <button
+                                                className="p-2 bg-white/90 backdrop-blur rounded-full hover:bg-white text-gray-600 transition-colors shadow-sm"
+                                                title="Transfer to another workspace"
+                                                onClick={(e) => { e.stopPropagation(); setTransferBrandId(brand.id); setShowTransferModal(true) }}
+                                            >
+                                                <ArrowRightLeft size={16} />
+                                            </button>
+                                        )}
                                         <button
                                             className="p-2 bg-white/90 backdrop-blur rounded-full hover:bg-white text-red-500 transition-colors shadow-sm"
                                             onClick={(e) => { e.stopPropagation(); handleDeleteClick(brand.id, brand.name) }}
@@ -845,6 +968,83 @@ export default function BrandsDashboard() {
                                     className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-all shadow-sm hover:shadow"
                                 >
                                     Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Workspace Modal */}
+            {showCreateWorkspace && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Create New Workspace</h3>
+                            <input
+                                type="text"
+                                placeholder="Workspace name"
+                                value={createWorkspaceName}
+                                onChange={(e) => setCreateWorkspaceName(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 mb-4"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
+                            />
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => { setShowCreateWorkspace(false); setCreateWorkspaceName('') }}
+                                    className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors bg-gray-50 hover:bg-gray-100 rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreateWorkspace}
+                                    disabled={creatingWorkspace || !createWorkspaceName.trim()}
+                                    className="px-5 py-2.5 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all shadow-sm disabled:opacity-50"
+                                >
+                                    {creatingWorkspace ? 'Creating...' : 'Create'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Transfer Brand Modal */}
+            {showTransferModal && transferBrandId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6">
+                            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <ArrowRightLeft size={24} />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">Transfer Project</h3>
+                            <p className="text-gray-500 text-sm text-center mb-6">
+                                Move this brand to another workspace
+                            </p>
+                            <div className="space-y-2">
+                                {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
+                                    <button
+                                        key={account.id}
+                                        onClick={() => handleTransferBrand(transferBrandId, account.id)}
+                                        className="flex items-center gap-3 w-full p-3 hover:bg-gray-50 rounded-xl text-sm text-left border border-gray-200 transition-colors"
+                                    >
+                                        <div className="w-8 h-8 rounded bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                            {account.name?.charAt(0) || 'A'}
+                                        </div>
+                                        <span className="font-medium text-gray-900">{account.name}</span>
+                                    </button>
+                                ))}
+                                {accounts.filter(a => a.id !== currentAccount?.id).length === 0 && (
+                                    <p className="text-sm text-gray-400 text-center py-4">No other workspaces available. Create one first.</p>
+                                )}
+                            </div>
+                            <div className="mt-4 flex justify-center">
+                                <button
+                                    onClick={() => { setShowTransferModal(false); setTransferBrandId(null) }}
+                                    className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors bg-gray-50 hover:bg-gray-100 rounded-xl"
+                                >
+                                    Cancel
                                 </button>
                             </div>
                         </div>
