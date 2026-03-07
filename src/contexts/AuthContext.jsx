@@ -134,7 +134,7 @@ export function AuthProvider({ children }) {
 
             if (error) {
                 console.error('Failed to fetch accounts:', error)
-                setAccounts([])
+                // Don't wipe existing accounts on a transient error — only mark as loaded
                 setAccountsLoaded(true)
                 setLoading(false)
                 return

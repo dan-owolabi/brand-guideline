@@ -198,7 +198,12 @@ function GeneralSettings({ account, onUpdate }) {
    Workspaces Settings — full CRUD + per-workspace team management
 ───────────────────────────────────────────────────────────────────────────── */
 function WorkspacesSettings() {
-    const { accounts, currentAccount, createAccount, updateAccount, deleteAccount, switchAccount, user } = useAuth()
+    const { accounts, currentAccount, createAccount, updateAccount, deleteAccount, switchAccount, user, refreshAccounts } = useAuth()
+
+    // Ensure accounts are fresh when this tab is opened
+    useEffect(() => {
+        refreshAccounts?.()
+    }, [])
 
     // Create modal
     const [showCreate, setShowCreate] = useState(false)
@@ -548,7 +553,7 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
         setInviting(true)
         setInviteError('')
         try {
-            const { error } = await supabase
+            const { data: inviteRow, error } = await supabase
                 .from('account_invites')
                 .insert({
                     account_id: workspace.id,
@@ -556,9 +561,17 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
                     role: inviteRole,
                     invited_by: user.id
                 })
+                .select()
+                .single()
             if (error) {
                 setInviteError(error.code === '23505' ? 'Already invited.' : error.message)
                 return
+            }
+            // Send invite email via Supabase admin so the person gets a real email
+            if (inviteRow?.token) {
+                await supabase.auth.admin.inviteUserByEmail(inviteEmail.trim().toLowerCase(), {
+                    redirectTo: `${window.location.origin}/invite/${inviteRow.token}`
+                })
             }
             setInviteEmail('')
             setShowInviteForm(false)
@@ -934,6 +947,13 @@ function TeamSettings({ account }) {
                     throw error
                 }
                 return
+            }
+
+            // Send invite email so the person gets a real email with a sign-in link
+            if (data?.token) {
+                await supabase.auth.admin.inviteUserByEmail(inviteEmail.trim().toLowerCase(), {
+                    redirectTo: `${window.location.origin}/invite/${data.token}`
+                })
             }
 
             setInviteEmail('')
