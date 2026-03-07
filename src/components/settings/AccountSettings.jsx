@@ -25,6 +25,9 @@ export default function AccountSettings() {
     const [newWsName, setNewWsName] = useState('')
     const [creating, setCreating] = useState(false)
 
+    // Must be declared before useEffects that reference it
+    const selectedWs = accounts.find(a => a.id === selectedWsId) || null
+
     // Ensure accounts are fresh when settings page loads (only if not already loaded)
     useEffect(() => {
         if (!accountsLoaded || accounts.length === 0) {
@@ -39,9 +42,6 @@ export default function AccountSettings() {
             setSelectedWsId(null)
         }
     }, [accounts, selectedWsId, selectedWs, view, accountsLoaded])
-
-    // Select first workspace by default when switching to workspace view
-    const selectedWs = accounts.find(a => a.id === selectedWsId) || null
 
     const handleSelectWorkspace = (ws) => {
         setSelectedWsId(ws.id)
