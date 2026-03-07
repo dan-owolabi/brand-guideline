@@ -80,7 +80,7 @@ export default function AccountSettings() {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                        {tab === 'general' && <GeneralSettings account={currentAccount} onUpdate={refreshAccounts} />}
+                        {tab === 'general' && <GeneralSettings />}
                         {tab === 'workspaces' && <WorkspacesSettings />}
                         {tab === 'domains' && <DomainSettings account={currentAccount} onUpdate={refreshAccounts} />}
                         {tab === 'billing' && <BillingSettings account={currentAccount} />}
@@ -94,100 +94,104 @@ export default function AccountSettings() {
 /* ─────────────────────────────────────────────────────────────────────────────
    General Settings
 ───────────────────────────────────────────────────────────────────────────── */
-function GeneralSettings({ account, onUpdate }) {
-    const [name, setName] = useState(account.name)
-    const [slug, setSlug] = useState(account.slug)
+function GeneralSettings() {
+    const { user } = useAuth()
+    const [displayName, setDisplayName] = useState(user?.email?.split('@')[0] || '')
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
-    const { isOwner } = useAuth()
+    const [changingPassword, setChangingPassword] = useState(false)
+    const [pwSent, setPwSent] = useState(false)
+    const [pwError, setPwError] = useState('')
 
-    const handleSave = async () => {
+    const handleSaveName = async () => {
         setSaving(true)
         try {
-            const { error } = await supabase
-                .from('accounts')
-                .update({ name, slug })
-                .eq('id', account.id)
-
+            const { error } = await supabase.auth.updateUser({ data: { full_name: displayName } })
             if (error) throw error
             setSaved(true)
             setTimeout(() => setSaved(false), 2000)
-            onUpdate?.()
         } catch (err) {
-            console.error('Failed to save:', err)
-            alert('Failed to save settings')
+            alert('Failed to save: ' + err.message)
         } finally {
             setSaving(false)
         }
     }
 
-    const brandUrl = getBrandUrl(slug)
+    const handlePasswordReset = async () => {
+        setChangingPassword(true)
+        setPwError('')
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(user?.email, {
+                redirectTo: `${window.location.origin}/reset-password`
+            })
+            if (error) throw error
+            setPwSent(true)
+        } catch (err) {
+            setPwError(err.message)
+        } finally {
+            setChangingPassword(false)
+        }
+    }
 
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-6">
-            <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h2>
+        <div className="space-y-4">
+            {/* Profile */}
+            <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
 
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Account Name
-                        </label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            disabled={!isOwner()}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            URL Slug
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1 flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                                <span className="px-3 py-2 bg-gray-50 text-gray-500 text-sm border-r border-gray-200">
-                                    https://
-                                </span>
-                                <input
-                                    type="text"
-                                    value={slug}
-                                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                                    disabled={!isOwner()}
-                                    className="flex-1 px-3 py-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-500"
-                                />
-                                <span className="px-3 py-2 bg-gray-50 text-gray-500 text-sm border-l border-gray-200">
-                                    .guidr.space
-                                </span>
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Your public brand guidelines will be available at {brandUrl}
-                        </p>
-                    </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                    <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
                 </div>
-            </div>
 
-            {isOwner() && (
-                <div className="flex justify-end pt-4 border-t border-gray-100">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                        type="email"
+                        value={user?.email || ''}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Email cannot be changed here.</p>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-gray-100">
                     <button
-                        onClick={handleSave}
+                        onClick={handleSaveName}
                         disabled={saving}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50"
                     >
-                        {saving ? (
-                            <Loader2 size={16} className="animate-spin" />
-                        ) : saved ? (
-                            <Check size={16} />
-                        ) : (
-                            <Save size={16} />
-                        )}
+                        {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
                         {saved ? 'Saved' : 'Save Changes'}
                     </button>
                 </div>
-            )}
+            </div>
+
+            {/* Password */}
+            <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-1">Password</h2>
+                <p className="text-sm text-gray-500 mb-4">We'll send a password reset link to your email.</p>
+                {pwSent ? (
+                    <p className="text-sm text-green-600 flex items-center gap-2"><Check size={14} /> Reset link sent to {user?.email}</p>
+                ) : (
+                    <>
+                        <button
+                            onClick={handlePasswordReset}
+                            disabled={changingPassword}
+                            className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                        >
+                            {changingPassword ? <Loader2 size={14} className="animate-spin" /> : null}
+                            Send Reset Link
+                        </button>
+                        {pwError && <p className="text-xs text-red-600 mt-2">{pwError}</p>}
+                    </>
+                )}
+            </div>
         </div>
     )
 }
