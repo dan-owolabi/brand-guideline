@@ -92,6 +92,19 @@ export function useBrandEditor(identifier) {
                         .eq('id', data.id)
                 }
 
+                // Normalize: ensure all sections and blocks have IDs (required by @dnd-kit)
+                finalDraft = {
+                    ...finalDraft,
+                    sections: (finalDraft.sections || []).map(section => ({
+                        ...section,
+                        id: section.id || crypto.randomUUID(),
+                        blocks: (section.blocks || []).map(block => ({
+                            ...block,
+                            id: block.id || crypto.randomUUID()
+                        }))
+                    }))
+                }
+
                 // Initialize history
                 setHistory({ past: [], present: finalDraft, future: [] })
                 isUserAction.current = false // Don't trigger save on load
