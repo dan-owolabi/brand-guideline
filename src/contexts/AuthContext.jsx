@@ -260,6 +260,56 @@ export function AuthProvider({ children }) {
         return { error }
     }
 
+    // Update an account's name/slug
+    const updateAccount = async (accountId, { name, slug }) => {
+        try {
+            const { data, error } = await supabase
+                .from('accounts')
+                .update({ name, slug })
+                .eq('id', accountId)
+                .select()
+                .single()
+
+            if (error) throw error
+
+            // Refresh accounts list
+            await fetchUserAccounts(user.id)
+
+            return { data, error: null }
+        } catch (err) {
+            return { data: null, error: err }
+        }
+    }
+
+    // Delete an account (owner only)
+    const deleteAccount = async (accountId) => {
+        try {
+            const { error } = await supabase
+                .from('accounts')
+                .delete()
+                .eq('id', accountId)
+
+            if (error) throw error
+
+            // If we deleted the current account, switch to another
+            if (currentAccount?.id === accountId) {
+                const remaining = accounts.filter(a => a.id !== accountId)
+                setCurrentAccount(remaining[0] || null)
+                if (remaining[0]) {
+                    localStorage.setItem('currentAccountId', remaining[0].id)
+                } else {
+                    localStorage.removeItem('currentAccountId')
+                }
+            }
+
+            await fetchUserAccounts(user.id)
+
+            return { error: null }
+        } catch (err) {
+            return { error: err }
+        }
+    }
+
     // Create a new account (for new users or adding accounts)
     const createAccount = async (name, slug) => {
         try {
@@ -320,6 +370,8 @@ export function AuthProvider({ children }) {
         // Account methods
         switchAccount,
         createAccount,
+        updateAccount,
+        deleteAccount,
         refreshAccounts: () => user && fetchUserAccounts(user.id),
 
         // Permission helpers

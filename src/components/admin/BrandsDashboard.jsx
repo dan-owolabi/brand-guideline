@@ -39,6 +39,7 @@ export default function BrandsDashboard() {
     const [creatingWorkspace, setCreatingWorkspace] = useState(false)
     const [showTransferModal, setShowTransferModal] = useState(false)
     const [transferBrandId, setTransferBrandId] = useState(null)
+    const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
 
     const isLegacyAdminRoute = location.pathname.startsWith('/admin')
     const getEditorPath = (brandId, pageSlug = 'introduction') => (
@@ -446,38 +447,49 @@ export default function BrandsDashboard() {
                 </div>
 
                 <div className="mt-auto p-4 border-t border-gray-100 space-y-2">
-                    {/* Account Switcher - always visible */}
-                    <div className="relative group">
-                        <button className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600">
+                    {/* Account Switcher — click-based dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowWorkspaceMenu(v => !v)}
+                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600"
+                        >
                             <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
                                 {currentAccount?.name?.charAt(0) || 'A'}
                             </div>
                             <span className="flex-1 text-left truncate">{currentAccount?.name}</span>
-                            <ChevronDown size={14} />
+                            <ChevronDown size={14} className={`transition-transform ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
                         </button>
-                        <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                            {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
-                                <button
-                                    key={account.id}
-                                    onClick={() => switchAccount(account.id)}
-                                    className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left"
-                                >
-                                    <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
-                                        {account.name?.charAt(0) || 'A'}
+                        {showWorkspaceMenu && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowWorkspaceMenu(false)} />
+                                <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                    {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
+                                        <button
+                                            key={account.id}
+                                            onClick={() => { switchAccount(account.id); setShowWorkspaceMenu(false) }}
+                                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left"
+                                        >
+                                            <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
+                                                {account.name?.charAt(0) || 'A'}
+                                            </div>
+                                            <span className="truncate">{account.name}</span>
+                                        </button>
+                                    ))}
+                                    {accounts.length === 0 && (
+                                        <p className="p-2 text-xs text-gray-400 text-center">No other workspaces</p>
+                                    )}
+                                    <div className="border-t border-gray-100">
+                                        <button
+                                            onClick={() => { setShowCreateWorkspace(true); setShowWorkspaceMenu(false) }}
+                                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left text-indigo-600 font-medium"
+                                        >
+                                            <Plus size={14} />
+                                            Create New Workspace
+                                        </button>
                                     </div>
-                                    <span className="truncate">{account.name}</span>
-                                </button>
-                            ))}
-                            <div className="border-t border-gray-100">
-                                <button
-                                    onClick={() => setShowCreateWorkspace(true)}
-                                    className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left text-indigo-600 font-medium"
-                                >
-                                    <Plus size={14} />
-                                    Create New Workspace
-                                </button>
-                            </div>
-                        </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* User Profile */}
