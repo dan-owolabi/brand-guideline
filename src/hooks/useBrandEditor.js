@@ -78,33 +78,41 @@ export function useBrandEditor(identifier) {
                     fetchedBrandIdRef.current = data.id
                 }
 
-                // Helper: does a draft have any real text/media content in its blocks?
-                const hasContent = (draft) =>
-                    draft?.sections?.some(s =>
-                        s.blocks?.some(b =>
-                            b.content?.text || b.data?.text ||
-                            b.content?.src || b.content?.url ||
-                            (b.content?.items && b.content.items.some(i => i))
-                        )
-                    )
+                // Check if a draft has any blocks with real content (any non-empty field)
+                const hasContent = (d) =>
+                    d?.sections?.some(s =>
+                        s.blocks?.some(b => {
+                            const c = b.content || b.data || {}
+                            const text = c.text || ''
+                            if (text && text !== '<br>' && text.trim()) return true
+                            if (c.src || c.url || c.href) return true
+                            if (c.items?.some(i => i)) return true
+                            // Any non-trivial field besides variant/tightSpacing
+                            return Object.keys(c).some(k =>
+                                k !== 'variant' && k !== 'tightSpacing' && !!c[k]
+                            )
+                        })
+                    ) ?? false
+
+                // Published is a valid restore source if it has any sections with blocks
+                const publishedUsable = (data.published?.sections || []).some(s => (s.blocks || []).length > 0)
 
                 const existingDraft = data.draft || data.published || { tokens: {}, sections: [] }
                 let finalDraft = existingDraft
 
                 if (!existingDraft.sections || existingDraft.sections.length === 0) {
                     // No sections at all — seed from published if available, else defaults
-                    if (hasContent(data.published)) {
+                    if (publishedUsable) {
                         finalDraft = data.published
                     } else {
                         const defaultDraft = getDefaultDraft()
                         finalDraft = defaultDraft
                     }
-                    // Save to database
                     await supabase
                         .from('brands')
                         .update({ draft: finalDraft })
                         .eq('id', data.id)
-                } else if (!hasContent(existingDraft) && hasContent(data.published)) {
+                } else if (!hasContent(existingDraft) && publishedUsable) {
                     // Draft has sections but all blocks are empty — restore from published
                     finalDraft = data.published
                     await supabase
