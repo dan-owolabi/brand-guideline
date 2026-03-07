@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { getAuthCallbackUrl } from '../lib/domainResolver'
 
 const AuthContext = createContext(null)
-const AUTH_TIMEOUT_MS = 8000
+const AUTH_TIMEOUT_MS = 20000
 
 function withTimeout(promise, ms, message) {
     return new Promise((resolve, reject) => {
