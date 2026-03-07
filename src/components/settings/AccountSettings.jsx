@@ -26,6 +26,11 @@ export default function AccountSettings() {
     const [newWsName, setNewWsName] = useState('')
     const [creating, setCreating] = useState(false)
 
+    // Ensure accounts are fresh when settings page loads
+    useEffect(() => {
+        refreshAccounts?.()
+    }, [])
+
     // Select first workspace by default when switching to workspace view
     const selectedWs = accounts.find(a => a.id === selectedWsId) || null
 
@@ -69,40 +74,39 @@ export default function AccountSettings() {
             <div className="max-w-5xl mx-auto px-6 py-8">
                 <div className="flex gap-8">
                     {/* Sidebar */}
-                    <nav className="w-56 shrink-0 space-y-5">
-                        {/* Account section */}
-                        <div>
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-1">Account</p>
-                            <button
-                                onClick={() => setView('profile')}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'profile' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                            >
-                                <Settings size={16} /> Profile
-                            </button>
-                        </div>
+                    <nav className="w-56 shrink-0">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">Account</p>
 
-                        {/* Workspaces section */}
-                        <div>
-                            <div className="flex items-center justify-between px-3 mb-1">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Workspaces</p>
+                        {/* Profile */}
+                        <button
+                            onClick={() => setView('profile')}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'profile' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        >
+                            <Settings size={16} /> Profile
+                        </button>
+
+                        {/* Workspaces — nested under Account */}
+                        <div className="mt-3 ml-3 pl-3 border-l border-gray-200">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Workspaces</p>
                                 <button
                                     onClick={() => setShowCreateWs(v => !v)}
-                                    className="p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition-colors"
+                                    className="p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
                                     title="New workspace"
                                 >
-                                    <Plus size={14} />
+                                    <Plus size={13} />
                                 </button>
                             </div>
 
                             {showCreateWs && (
-                                <form onSubmit={handleCreateWorkspace} className="px-3 mb-2">
+                                <form onSubmit={handleCreateWorkspace} className="mb-2">
                                     <input
                                         autoFocus
                                         type="text"
                                         value={newWsName}
                                         onChange={e => setNewWsName(e.target.value)}
                                         placeholder="Workspace name"
-                                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 mb-1"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 mb-1"
                                     />
                                     <div className="flex gap-1">
                                         <button type="submit" disabled={creating || !newWsName.trim()} className="flex-1 py-1 text-xs bg-gray-900 text-white rounded-lg disabled:opacity-50">
@@ -116,14 +120,14 @@ export default function AccountSettings() {
                             )}
 
                             {!accountsLoaded ? (
-                                <div className="px-3 py-2"><Loader2 size={14} className="animate-spin text-gray-400" /></div>
+                                <div className="py-2"><Loader2 size={13} className="animate-spin text-gray-400" /></div>
                             ) : (
                                 <ul className="space-y-0.5">
                                     {accounts.map(ws => (
                                         <li key={ws.id}>
                                             <button
                                                 onClick={() => handleSelectWorkspace(ws)}
-                                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left ${view === 'workspace' && selectedWsId === ws.id ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors text-left ${view === 'workspace' && selectedWsId === ws.id ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                                             >
                                                 <div className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold shrink-0 ${view === 'workspace' && selectedWsId === ws.id ? 'bg-white/20 text-white' : 'bg-gradient-to-br from-pink-500 to-rose-500 text-white'}`}>
                                                     {ws.name?.charAt(0)?.toUpperCase()}
