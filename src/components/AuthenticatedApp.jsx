@@ -15,6 +15,7 @@ import LoginPage from './auth/LoginPage'
 import SignupPage from './auth/SignupPage'
 import OnboardingFlow from './auth/OnboardingFlow'
 import AccountSettings from './settings/AccountSettings'
+import AcceptInvite from './auth/AcceptInvite'
 import { Loader2 } from 'lucide-react'
 
 export default function AuthenticatedApp() {
@@ -39,6 +40,9 @@ export default function AuthenticatedApp() {
                 user ? <Navigate to="/dashboard" replace /> : <SignupPage />
             } />
             <Route path="/auth/callback" element={<AuthCallback />} />
+
+            {/* Invite acceptance (works for both logged-in and logged-out users) */}
+            <Route path="/invite/:token" element={<AcceptInvite />} />
 
             {/* Onboarding for users without accounts */}
             <Route path="/onboarding" element={

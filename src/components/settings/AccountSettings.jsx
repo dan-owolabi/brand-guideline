@@ -66,8 +66,8 @@ export default function AccountSettings() {
                                     <button
                                         onClick={() => navigate(`/settings/${t.id}`)}
                                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.id
-                                                ? 'bg-gray-900 text-white'
-                                                : 'text-gray-600 hover:bg-gray-100'
+                                            ? 'bg-gray-900 text-white'
+                                            : 'text-gray-600 hover:bg-gray-100'
                                             }`}
                                     >
                                         <t.icon size={18} />
@@ -305,13 +305,19 @@ function DomainSettings({ account, onUpdate }) {
 
 function TeamSettings({ account }) {
     const [members, setMembers] = useState([])
+    const [pendingInvites, setPendingInvites] = useState([])
     const [loading, setLoading] = useState(true)
     const [inviteEmail, setInviteEmail] = useState('')
     const [inviteRole, setInviteRole] = useState('editor')
+    const [showInviteForm, setShowInviteForm] = useState(false)
+    const [inviting, setInviting] = useState(false)
+    const [inviteError, setInviteError] = useState(null)
+    const [copiedToken, setCopiedToken] = useState(null)
     const { isOwner, user } = useAuth()
 
     useEffect(() => {
         loadMembers()
+        loadPendingInvites()
     }, [account.id])
 
     const loadMembers = async () => {
@@ -340,6 +346,77 @@ function TeamSettings({ account }) {
         }
     }
 
+    const loadPendingInvites = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('account_invites')
+                .select('*')
+                .eq('account_id', account.id)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false })
+
+            if (error) throw error
+            setPendingInvites(data || [])
+        } catch (err) {
+            console.error('Failed to load invites:', err)
+        }
+    }
+
+    const handleInvite = async (e) => {
+        e.preventDefault()
+        if (!inviteEmail.trim()) return
+
+        setInviting(true)
+        setInviteError(null)
+
+        try {
+            const { data, error } = await supabase
+                .from('account_invites')
+                .insert({
+                    account_id: account.id,
+                    email: inviteEmail.trim().toLowerCase(),
+                    role: inviteRole,
+                    invited_by: user.id
+                })
+                .select()
+                .single()
+
+            if (error) {
+                if (error.code === '23505') {
+                    setInviteError('This email has already been invited.')
+                } else {
+                    throw error
+                }
+                return
+            }
+
+            setInviteEmail('')
+            setShowInviteForm(false)
+            loadPendingInvites()
+        } catch (err) {
+            console.error('Failed to send invite:', err)
+            setInviteError(err.message || 'Failed to send invite')
+        } finally {
+            setInviting(false)
+        }
+    }
+
+    const handleRevokeInvite = async (inviteId) => {
+        try {
+            await supabase.from('account_invites').delete().eq('id', inviteId)
+            loadPendingInvites()
+        } catch (err) {
+            console.error('Failed to revoke invite:', err)
+        }
+    }
+
+    const copyInviteLink = (token) => {
+        const link = `${window.location.origin}/invite/${token}`
+        navigator.clipboard.writeText(link)
+        setCopiedToken(token)
+        setTimeout(() => setCopiedToken(null), 2000)
+    }
+
     const handleRemoveMember = async (memberId) => {
         if (!confirm('Remove this team member?')) return
 
@@ -357,60 +434,166 @@ function TeamSettings({ account }) {
     }
 
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">Team Members</h2>
-                {isOwner() && (
-                    <button className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                        <Plus size={16} />
-                        Invite
-                    </button>
-                )}
-            </div>
+        <div className="space-y-6">
+            {/* Invite Form */}
+            {isOwner() && (
+                <div className="bg-white rounded-xl border border-gray-100 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold text-gray-900">Invite Team Member</h2>
+                    </div>
 
-            {loading ? (
-                <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                </div>
-            ) : (
-                <div className="space-y-3">
-                    {members.map(member => (
-                        <div
-                            key={member.id}
-                            className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50"
+                    {!showInviteForm ? (
+                        <button
+                            onClick={() => setShowInviteForm(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
                         >
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
-                                {member.user?.full_name?.charAt(0) || member.user?.email?.charAt(0) || '?'}
+                            <Mail size={16} />
+                            Send Invite
+                        </button>
+                    ) : (
+                        <form onSubmit={handleInvite} className="space-y-4">
+                            <div className="flex gap-3">
+                                <div className="flex-1">
+                                    <input
+                                        type="email"
+                                        placeholder="colleague@company.com"
+                                        value={inviteEmail}
+                                        onChange={(e) => setInviteEmail(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                                        required
+                                        autoFocus
+                                    />
+                                </div>
+                                <select
+                                    value={inviteRole}
+                                    onChange={(e) => setInviteRole(e.target.value)}
+                                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 bg-white"
+                                >
+                                    <option value="editor">Editor</option>
+                                    <option value="viewer">Viewer</option>
+                                </select>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">
-                                    {member.user?.full_name || 'Unknown'}
-                                    {member.user?.id === user?.id && (
-                                        <span className="ml-2 text-xs text-gray-500">(you)</span>
-                                    )}
-                                </p>
-                                <p className="text-sm text-gray-500 truncate">{member.user?.email}</p>
+
+                            {inviteError && (
+                                <div className="flex items-center gap-2 text-sm text-red-600">
+                                    <AlertCircle size={14} />
+                                    {inviteError}
+                                </div>
+                            )}
+
+                            <div className="flex gap-2">
+                                <button
+                                    type="submit"
+                                    disabled={inviting}
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                    {inviting ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                                    {inviting ? 'Sending...' : 'Send Invite'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowInviteForm(false); setInviteError(null) }}
+                                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
                             </div>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${member.role === 'owner'
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* Pending Invites */}
+            {isOwner() && pendingInvites.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-100 p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Pending Invites</h2>
+                    <div className="space-y-3">
+                        {pendingInvites.map(invite => (
+                            <div
+                                key={invite.id}
+                                className="flex items-center gap-4 p-3 rounded-lg bg-amber-50/50 border border-amber-100"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                    <Mail size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">{invite.email}</p>
+                                    <p className="text-xs text-gray-500">
+                                        Invited {new Date(invite.created_at).toLocaleDateString()} · Expires {new Date(invite.expires_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${invite.role === 'editor' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                    }`}>
+                                    {invite.role}
+                                </span>
+                                <button
+                                    onClick={() => copyInviteLink(invite.token)}
+                                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title="Copy invite link"
+                                >
+                                    {copiedToken === invite.token ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                                </button>
+                                <button
+                                    onClick={() => handleRevokeInvite(invite.id)}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Revoke invite"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Current Members */}
+            <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-6">Members</h2>
+
+                {loading ? (
+                    <div className="flex justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {members.map(member => (
+                            <div
+                                key={member.id}
+                                className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
+                                    {member.user?.full_name?.charAt(0) || member.user?.email?.charAt(0) || '?'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">
+                                        {member.user?.full_name || 'Unknown'}
+                                        {member.user?.id === user?.id && (
+                                            <span className="ml-2 text-xs text-gray-500">(you)</span>
+                                        )}
+                                    </p>
+                                    <p className="text-sm text-gray-500 truncate">{member.user?.email}</p>
+                                </div>
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${member.role === 'owner'
                                     ? 'bg-purple-100 text-purple-700'
                                     : member.role === 'editor'
                                         ? 'bg-blue-100 text-blue-700'
                                         : 'bg-gray-100 text-gray-700'
-                                }`}>
-                                {member.role}
-                            </span>
-                            {isOwner() && member.user?.id !== user?.id && (
-                                <button
-                                    onClick={() => handleRemoveMember(member.id)}
-                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
+                                    }`}>
+                                    {member.role}
+                                </span>
+                                {isOwner() && member.user?.id !== user?.id && (
+                                    <button
+                                        onClick={() => handleRemoveMember(member.id)}
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
