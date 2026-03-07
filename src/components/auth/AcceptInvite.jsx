@@ -12,7 +12,7 @@ import { Loader2, CheckCircle, XCircle, Users, ArrowRight } from 'lucide-react'
 export default function AcceptInvite() {
     const { token } = useParams()
     const navigate = useNavigate()
-    const { user, loading: authLoading, initialized } = useAuth()
+    const { user, loading: authLoading, initialized, refreshAccounts, switchAccount } = useAuth()
     const [invite, setInvite] = useState(null)
     const [loading, setLoading] = useState(true)
     const [accepting, setAccepting] = useState(false)
@@ -89,8 +89,10 @@ export default function AcceptInvite() {
 
             setSuccess(true)
 
-            // Redirect to dashboard after short delay
-            setTimeout(() => {
+            // Refresh accounts and switch to the invited workspace, then redirect
+            setTimeout(async () => {
+                await refreshAccounts()
+                if (data?.account_id) switchAccount(data.account_id)
                 navigate('/dashboard', { replace: true })
             }, 2000)
         } catch (err) {

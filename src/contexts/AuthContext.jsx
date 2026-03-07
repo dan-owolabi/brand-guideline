@@ -146,7 +146,9 @@ export function AuthProvider({ children }) {
 
             // No accounts found — auto-create a default one so the user
             // is never stuck on the onboarding screen unnecessarily.
-            if (userAccounts.length === 0) {
+            // Skip auto-create if the user is in the middle of accepting an invite.
+            const onInvitePage = window.location.pathname.startsWith('/invite/')
+            if (userAccounts.length === 0 && !onInvitePage) {
                 try {
                     const { data: userData } = await supabase.auth.getUser()
                     const email = userData?.user?.email || 'user@example.com'
