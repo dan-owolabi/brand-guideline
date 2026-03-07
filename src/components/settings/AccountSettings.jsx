@@ -523,7 +523,7 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
         try {
             const { data, error } = await supabase
                 .from('account_members')
-                .select(`id, role, created_at, user:users(id, email, full_name, avatar_url)`)
+                .select(`id, role, created_at, user:users(id, email, avatar_url)`)
                 .eq('account_id', workspace.id)
             if (!error) setMembers(data || [])
         } catch (e) {
@@ -673,16 +673,14 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
                         {members.map(member => (
                             <div key={member.id} className="flex items-center gap-3 p-2 bg-white rounded-lg border border-gray-100">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                                    {member.user?.full_name?.charAt(0) || member.user?.email?.charAt(0) || '?'}
+                                    {member.user?.email?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-900 truncate">
-                                        {member.user?.full_name || member.user?.email || 'Unknown'}
+                                        {member.user?.email?.split('@')[0] || 'Unknown'}
                                         {member.user?.id === currentUserId && <span className="ml-1 text-xs text-gray-400">(you)</span>}
                                     </p>
-                                    {member.user?.full_name && (
-                                        <p className="text-xs text-gray-400 truncate">{member.user?.email}</p>
-                                    )}
+                                    <p className="text-xs text-gray-400 truncate">{member.user?.email}</p>
                                 </div>
                                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                                     member.role === 'owner' ? 'bg-purple-100 text-purple-700'
@@ -891,7 +889,6 @@ function TeamSettings({ account }) {
                     user:users (
                         id,
                         email,
-                        full_name,
                         avatar_url
                     )
                 `)
@@ -1130,11 +1127,11 @@ function TeamSettings({ account }) {
                                 className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50"
                             >
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
-                                    {member.user?.full_name?.charAt(0) || member.user?.email?.charAt(0) || '?'}
+                                    {member.user?.email?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="font-medium text-gray-900 truncate">
-                                        {member.user?.full_name || 'Unknown'}
+                                        {member.user?.email?.split('@')[0] || 'Unknown'}
                                         {member.user?.id === user?.id && (
                                             <span className="ml-2 text-xs text-gray-500">(you)</span>
                                         )}
