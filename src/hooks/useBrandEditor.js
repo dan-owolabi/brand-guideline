@@ -78,6 +78,16 @@ export function useBrandEditor(identifier) {
                     fetchedBrandIdRef.current = data.id
                 }
 
+                // DEBUG: log database state to diagnose content loss
+                console.log('[useBrandEditor] DB state for brand', data.id, {
+                    draftSections: data.draft?.sections?.length ?? 'null',
+                    draftFirstSectionBlocks: data.draft?.sections?.[0]?.blocks?.length ?? 'null',
+                    draftFirstBlock: data.draft?.sections?.[0]?.blocks?.[0],
+                    publishedSections: data.published?.sections?.length ?? 'null',
+                    publishedFirstSectionBlocks: data.published?.sections?.[0]?.blocks?.length ?? 'null',
+                    publishedFirstBlock: data.published?.sections?.[0]?.blocks?.[0],
+                })
+
                 // Check if a draft has any blocks with real content (any non-empty field)
                 const hasContent = (d) =>
                     d?.sections?.some(s =>
