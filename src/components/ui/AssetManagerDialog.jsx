@@ -56,7 +56,6 @@ export default function AssetManagerDialog({ open, onOpenChange, brandId, onSele
     const fetchAssets = async () => {
         setLoading(true)
         try {
-            // Try to fetch from assets table, fallback to empty if table doesn't exist
             const { data, error } = await supabase
                 .from('assets')
                 .select('*')
@@ -64,11 +63,18 @@ export default function AssetManagerDialog({ open, onOpenChange, brandId, onSele
                 .order('created_at', { ascending: false })
 
             if (error) {
-                // If table doesn't exist, just use empty array
                 console.log('Assets table not found or error:', error.message)
                 setAssets([])
             } else {
-                setAssets(data || [])
+                const all = data || []
+                // Silently remove any 'other' category assets that slipped in previously
+                const otherIds = all
+                    .filter(a => getFileCategory(a.name || a.file_url).category === 'other')
+                    .map(a => a.id)
+                if (otherIds.length > 0) {
+                    await supabase.from('assets').delete().in('id', otherIds)
+                }
+                setAssets(all.filter(a => getFileCategory(a.name || a.file_url).category !== 'other'))
             }
         } catch (err) {
             console.error('Failed to fetch assets:', err)
@@ -82,6 +88,9 @@ export default function AssetManagerDialog({ open, onOpenChange, brandId, onSele
         setIsUploading(true)
         try {
             for (const file of files) {
+                // Skip folders and files with unrecognised extensions
+                if (getFileCategory(file.name).category === 'other') continue
+
                 const url = await uploadFile(file, 'assets')
                 const isImage = file.type.startsWith('image/')
 
@@ -95,7 +104,6 @@ export default function AssetManagerDialog({ open, onOpenChange, brandId, onSele
                     category: getFileCategory(file.name).category
                 }
 
-                // Try to insert into database
                 const { error } = await supabase
                     .from('assets')
                     .insert(newAsset)
