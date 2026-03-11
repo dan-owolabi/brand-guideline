@@ -247,12 +247,23 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
         const { active, over } = event
 
         if (over && active.id !== over.id) {
-            const sections = data?.sections || []
-            const oldIndex = sections.findIndex((s) => s.id === active.id)
-            const newIndex = sections.findIndex((s) => s.id === over.id)
+            const allSections = data?.sections || []
+            const oldIndex = allSections.findIndex((s) => s.id === active.id)
+            const newIndex = allSections.findIndex((s) => s.id === over.id)
 
             if (oldIndex !== -1 && newIndex !== -1) {
-                const newSections = arrayMove(sections, oldIndex, newIndex)
+                const draggedSection = allSections[oldIndex]
+                const targetSection = allSections[newIndex]
+
+                let newSections = arrayMove(allSections, oldIndex, newIndex)
+
+                // If dropped into a different group, inherit the target's group
+                if (draggedSection.group !== targetSection.group) {
+                    newSections = newSections.map(s =>
+                        s.id === active.id ? { ...s, group: targetSection.group } : s
+                    )
+                }
+
                 reorderSections(newSections)
             }
         }
