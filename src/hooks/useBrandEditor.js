@@ -293,6 +293,7 @@ export function useBrandEditor(identifier) {
             id: crypto.randomUUID(),
             slug: section.slug || section.title.toLowerCase().replace(/\s+/g, '-'),
             title: section.title,
+            group: section.group,
             blocks: section.blocks || []
         }
         updateDraft(prev => ({
