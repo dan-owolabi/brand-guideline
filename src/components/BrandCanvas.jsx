@@ -136,6 +136,12 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
     const [selectedBlockIds, setSelectedBlockIds] = useState(new Set())
     const [lastSelectedBlockId, setLastSelectedBlockId] = useState(null)
 
+    // Inline add state for sidebar
+    const [addingGroup, setAddingGroup] = useState(false)
+    const [newGroupName, setNewGroupName] = useState('')
+    const [addingSubsection, setAddingSubsection] = useState(null) // group name string
+    const [newSubsectionName, setNewSubsectionName] = useState('')
+
     // Use draft for admin, brandData for public
     const data = isAdmin ? draft : brandData?.published
     const sections = data?.sections || []
@@ -275,24 +281,37 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
     }
 
     const handleAddSection = () => {
-        const title = "Untitled Section"
-        const slug = `untitled-${Date.now()}`
+        setNewGroupName('')
+        setAddingGroup(true)
+    }
 
-        // Use the last group from existing sections, or default to first group
-        const existingGroups = [...new Set(sections.map(s => s.group).filter(Boolean))]
-        const lastGroup = existingGroups[existingGroups.length - 1] || existingGroups[0] || "General"
+    const handleConfirmNewGroup = () => {
+        const groupName = newGroupName.trim()
+        setAddingGroup(false)
+        setNewGroupName('')
+        if (!groupName) return
+        const slug = groupName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+        addSection({
+            title: 'Untitled',
+            slug,
+            group: groupName,
+            blocks: [{ id: crypto.randomUUID(), type: 'text', content: { text: '', variant: 'paragraph' } }]
+        })
+        const brandId = brandData?.brandId || params.brandId
+        navigate(`/admin/brand/${brandId}/${slug}`)
+    }
 
+    const handleConfirmNewSubsection = (groupName) => {
+        const title = newSubsectionName.trim()
+        setAddingSubsection(null)
+        setNewSubsectionName('')
+        if (!title) return
+        const slug = title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
         addSection({
             title,
             slug,
-            group: lastGroup,
-            blocks: [
-                {
-                    id: crypto.randomUUID(),
-                    type: 'text',
-                    content: { text: '', variant: 'paragraph' }
-                }
-            ]
+            group: groupName,
+            blocks: [{ id: crypto.randomUUID(), type: 'text', content: { text: '', variant: 'paragraph' } }]
         })
         const brandId = brandData?.brandId || params.brandId
         navigate(`/admin/brand/${brandId}/${slug}`)
@@ -463,28 +482,29 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                             modifiers={[restrictToVerticalAxis]}
                         >
                             {Object.entries(groupedSections).map(([groupName, groupSections], groupIndex) => {
-                                // Hide header if it's redundant (single section with same name)
                                 const isRedundantHeader = groupSections.length === 1 &&
                                     (groupSections[0].title || '').trim().toLowerCase() === groupName.trim().toLowerCase()
 
                                 return (
                                     <div key={groupName} className={groupIndex === 0 ? '' : 'pt-4'}>
                                         {!isRedundantHeader && (
-                                            <h3
-                                                className={`text-[14px] font-semibold text-[#111] mb-2 ${isAdmin ? 'cursor-text hover:text-gray-600' : ''}`}
-                                                contentEditable={isAdmin}
-                                                suppressContentEditableWarning
-                                                onBlur={(e) => {
-                                                    const newGroupName = e.currentTarget.textContent.trim()
-                                                    if (isAdmin && newGroupName && newGroupName !== groupName) {
-                                                        groupSections.forEach(section => {
-                                                            updateSection(section.id, { group: newGroupName })
-                                                        })
-                                                    }
-                                                }}
-                                            >
-                                                {groupName}
-                                            </h3>
+                                            <div className="flex items-center justify-between group/group mb-2">
+                                                <h3
+                                                    className={`text-[14px] font-semibold text-[#111] ${isAdmin ? 'cursor-text hover:text-gray-600' : ''}`}
+                                                    contentEditable={isAdmin}
+                                                    suppressContentEditableWarning
+                                                    onBlur={(e) => {
+                                                        const updated = e.currentTarget.textContent.trim()
+                                                        if (isAdmin && updated && updated !== groupName) {
+                                                            groupSections.forEach(section => {
+                                                                updateSection(section.id, { group: updated })
+                                                            })
+                                                        }
+                                                    }}
+                                                >
+                                                    {groupName}
+                                                </h3>
+                                            </div>
                                         )}
                                         <SortableContext
                                             items={groupSections.map(s => s.id)}
@@ -507,17 +527,62 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                                                 ))}
                                             </ul>
                                         </SortableContext>
+                                        {/* Inline add subsection input or button */}
+                                        {isAdmin && (
+                                            addingSubsection === groupName ? (
+                                                <div className="pl-4 mt-1">
+                                                    <input
+                                                        autoFocus
+                                                        type="text"
+                                                        value={newSubsectionName}
+                                                        onChange={e => setNewSubsectionName(e.target.value)}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleConfirmNewSubsection(groupName)
+                                                            if (e.key === 'Escape') { setAddingSubsection(null); setNewSubsectionName('') }
+                                                        }}
+                                                        onBlur={() => handleConfirmNewSubsection(groupName)}
+                                                        placeholder="Subsection name..."
+                                                        className="w-full text-[13px] px-2 py-1 border border-gray-200 rounded-md outline-none focus:border-gray-400 bg-white"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => { setAddingSubsection(groupName); setNewSubsectionName('') }}
+                                                    className="pl-6 mt-0.5 flex items-center gap-1.5 text-[12px] text-gray-300 hover:text-gray-500 transition-colors py-0.5"
+                                                >
+                                                    <Plus size={11} /> Add subsection
+                                                </button>
+                                            )
+                                        )}
                                     </div>
                                 )
                             })}
                         </DndContext>
                         {isAdmin && (
-                            <button
-                                onClick={handleAddSection}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors mt-2"
-                            >
-                                <Plus size={16} /> Add section
-                            </button>
+                            addingGroup ? (
+                                <div className="mt-3">
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        value={newGroupName}
+                                        onChange={e => setNewGroupName(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') handleConfirmNewGroup()
+                                            if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName('') }
+                                        }}
+                                        onBlur={handleConfirmNewGroup}
+                                        placeholder="Section name..."
+                                        className="w-full text-[13px] px-2 py-1 border border-gray-200 rounded-md outline-none focus:border-gray-400 bg-white"
+                                    />
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleAddSection}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors mt-2"
+                                >
+                                    <Plus size={16} /> Add section
+                                </button>
+                            )
                         )}
                     </nav>
 

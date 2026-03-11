@@ -78,34 +78,31 @@ export function useBrandEditor(identifier) {
                     fetchedBrandIdRef.current = data.id
                 }
 
-                // DEBUG: log database state to diagnose content loss
-                console.log('[useBrandEditor] DB state for brand', data.id, {
-                    draftSections: data.draft?.sections?.length ?? 'null',
-                    draftFirstSectionBlocks: data.draft?.sections?.[0]?.blocks?.length ?? 'null',
-                    draftFirstBlock: data.draft?.sections?.[0]?.blocks?.[0],
-                    publishedSections: data.published?.sections?.length ?? 'null',
-                    publishedFirstSectionBlocks: data.published?.sections?.[0]?.blocks?.length ?? 'null',
-                    publishedFirstBlock: data.published?.sections?.[0]?.blocks?.[0],
-                })
-
-                // Check if a draft has any blocks with real content (any non-empty field)
+                // Check if a draft has any blocks with real visible content
                 const hasContent = (d) =>
                     d?.sections?.some(s =>
                         s.blocks?.some(b => {
                             const c = b.content || b.data || {}
-                            const text = c.text || ''
-                            if (text && text !== '<br>' && text.trim()) return true
+                            // Strip HTML tags to check for real text
+                            const rawText = (c.text || '').replace(/<[^>]*>/g, '').trim()
+                            if (rawText) return true
                             if (c.src || c.url || c.href) return true
-                            if (c.items?.some(i => i)) return true
-                            // Any non-trivial field besides variant/tightSpacing
-                            return Object.keys(c).some(k =>
-                                k !== 'variant' && k !== 'tightSpacing' && !!c[k]
-                            )
+                            if (Array.isArray(c.items) && c.items.some(i => typeof i === 'string' && i.trim())) return true
+                            if (Array.isArray(c.rows) && c.rows.length > 0) return true
+                            return false
                         })
                     ) ?? false
 
-                // Published is a valid restore source if it has any sections with blocks
-                const publishedUsable = (data.published?.sections || []).some(s => (s.blocks || []).length > 0)
+                // Published is usable as a restore source if it has actual content
+                const publishedUsable = hasContent(data.published)
+
+                // DEBUG: log diagnostic values inline (no object expansion needed)
+                console.log('[useBrandEditor] draft.sections:', data.draft?.sections?.length ?? 'null',
+                    '| draftHasContent:', hasContent(data.draft),
+                    '| published.sections:', data.published?.sections?.length ?? 'null',
+                    '| publishedUsable:', publishedUsable)
+                console.log('[useBrandEditor] draftFirstBlock:', JSON.stringify(data.draft?.sections?.[0]?.blocks?.[0]))
+                console.log('[useBrandEditor] publishedFirstBlock:', JSON.stringify(data.published?.sections?.[0]?.blocks?.[0]))
 
                 const existingDraft = data.draft || data.published || { tokens: {}, sections: [] }
                 let finalDraft = existingDraft
