@@ -210,8 +210,7 @@ export default function BrandsDashboard() {
                     banner_url: newBrand.bannerUrl,
                     draft: defaultDraft,
                     published: null,
-                    account_id: currentAccount?.id,
-                    workspace_id: currentAccount?.id
+                    account_id: currentAccount?.id
                 })
                 .select()
                 .single()
