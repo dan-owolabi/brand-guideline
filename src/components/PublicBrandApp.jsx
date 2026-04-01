@@ -24,62 +24,55 @@ export default function PublicBrandApp({ brandIdentifier, isCustomDomain = false
         try {
             let query = supabase
                 .from('brands')
-                .select(`
-                    id,
-                    name,
-                    slug,
-                    logo_url,
-                    primary_color,
-                    published,
-                    accounts!inner (
-                        id,
-                        name,
-                        slug,
-                        logo_url,
-                        is_published,
-                        custom_domain
-                    )
-                `)
+                .select('id, name, slug, logo_url, primary_color, published, account_id')
 
             if (isCustomDomain) {
-                // Lookup by custom domain mapped to the account
-                query = query.eq('accounts.custom_domain', brandIdentifier)
+                // Custom domain: find the account/workspace that owns this domain, then get its brand
+                const { data: acct } = await supabase
+                    .from('accounts')
+                    .select('id')
+                    .eq('custom_domain', brandIdentifier)
+                    .maybeSingle()
+
+                if (acct) {
+                    query = query.eq('account_id', acct.id).limit(1)
+                } else {
+                    // Fall back to workspace custom_domain lookup
+                    const { data: ws } = await supabase
+                        .from('workspaces')
+                        .select('id')
+                        .eq('slug', brandIdentifier)
+                        .maybeSingle()
+                    if (ws) {
+                        query = query.eq('workspace_id', ws.id).limit(1)
+                    } else {
+                        throw new Error('No account found for custom domain')
+                    }
+                }
             } else {
-                // Lookup by brand slug
+                // Slug-based lookup — find brand directly, no accounts join required
                 query = query.eq('slug', brandIdentifier)
             }
 
-            // Since custom_domain on account might return multiple brands, we use .limit(1).single()
-            // Wait, if an account has multiple brands and uses a custom domain, which brand is the default?
-            // For now, we take the one that matches or the first one returned by .single()
-            const { data: brandData, error } = await query.limit(1).single()
+            const { data: brandData, error } = await query.maybeSingle()
 
             if (error) throw error
+            if (!brandData) throw new Error('Brand not found')
 
-            const accountData = brandData.accounts
-
-            // Check if published
-            if (!accountData.is_published) {
-                setError('not_published')
-                return
-            }
-
-            // A brand itself must also be published (have published data)
+            // Brand must have published content
             if (!brandData.published) {
                 setError('not_published')
                 return
             }
 
             setBrand({
-                accountId: accountData.id,
-                accountName: accountData.name,
-                accountSlug: accountData.slug,
+                accountId: brandData.account_id,
                 brandId: brandData.id,
                 name: brandData.name,
                 slug: brandData.slug,
-                logoUrl: brandData.logo_url || accountData.logo_url,
+                logoUrl: brandData.logo_url,
                 primaryColor: brandData.primary_color,
-                published: brandData.published || { tokens: {}, sections: [] }
+                published: brandData.published
             })
         } catch (err) {
             console.error('Failed to load brand:', err)
