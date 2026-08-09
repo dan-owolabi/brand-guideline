@@ -22,33 +22,24 @@ export default function PublicBrandApp({ brandIdentifier, isCustomDomain = false
 
     const loadBrand = async () => {
         try {
+            // Public reads go through column-scoped views (migration 010), never
+            // the base tables — anon has no base-table access after migration 011.
             let query = supabase
-                .from('brands')
+                .from('public_brands')
                 .select('id, name, slug, logo_url, primary_color, published, account_id')
 
             if (isCustomDomain) {
-                // Custom domain: find the account/workspace that owns this domain, then get its brand
+                // Custom domain: find the account that owns this domain, then get its brand
                 const { data: acct } = await supabase
-                    .from('accounts')
+                    .from('public_accounts')
                     .select('id')
                     .eq('custom_domain', brandIdentifier)
                     .maybeSingle()
 
-                if (acct) {
-                    query = query.eq('account_id', acct.id).limit(1)
-                } else {
-                    // Fall back to workspace custom_domain lookup
-                    const { data: ws } = await supabase
-                        .from('workspaces')
-                        .select('id')
-                        .eq('slug', brandIdentifier)
-                        .maybeSingle()
-                    if (ws) {
-                        query = query.eq('workspace_id', ws.id).limit(1)
-                    } else {
-                        throw new Error('No account found for custom domain')
-                    }
+                if (!acct) {
+                    throw new Error('No account found for custom domain')
                 }
+                query = query.eq('account_id', acct.id).limit(1)
             } else {
                 // Slug-based lookup — find brand directly, no accounts join required
                 query = query.eq('slug', brandIdentifier)

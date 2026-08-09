@@ -148,7 +148,8 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         try {
             // 1. Resolve Brand first (handle slug or ID)
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)
-            let brandQuery = supabase.from('brands').select('id, name, logo_url, primary_color, banner_url, published')
+            // Admins read the base table; public (isAdmin=false) reads the column-scoped view.
+            let brandQuery = supabase.from(isAdmin ? 'brands' : 'public_brands').select('id, name, logo_url, primary_color, banner_url, published')
 
             if (isUuid) {
                 brandQuery = brandQuery.eq('id', identifier)
