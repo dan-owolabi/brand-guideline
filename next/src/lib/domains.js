@@ -7,13 +7,25 @@
  */
 
 export const BASE_DOMAIN = 'guidr.space'
+// Staging mirrors production under its own base, one level deeper.
+export const STAGING_BASE_DOMAIN = `staging.${BASE_DOMAIN}`
 
-export const MARKETING_HOSTS = [BASE_DOMAIN, `www.${BASE_DOMAIN}`]
-export const APP_HOSTS = [`app.${BASE_DOMAIN}`]
+// Bases ordered most-specific first so `staging.guidr.space` resolves against
+// the staging base before the production base can treat "staging" as a brand.
+const BASES = [STAGING_BASE_DOMAIN, BASE_DOMAIN]
+
+export const MARKETING_HOSTS = [
+    BASE_DOMAIN, `www.${BASE_DOMAIN}`,
+    STAGING_BASE_DOMAIN, `www.${STAGING_BASE_DOMAIN}`,
+]
+export const APP_HOSTS = [
+    `app.${BASE_DOMAIN}`,
+    `app.${STAGING_BASE_DOMAIN}`,
+]
 export const LOCAL_HOSTS = ['localhost', '127.0.0.1']
 
 /** Subdomains that must never resolve to a brand. */
-export const RESERVED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'cdn', 'assets', 'static', 'mail']
+export const RESERVED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'cdn', 'assets', 'static', 'mail', 'staging']
 
 /**
  * Resolve a hostname to an app context.
@@ -38,16 +50,24 @@ export function resolveHost(hostname, params) {
         return { type: 'app' }
     }
 
+    // Raw Vercel deployment/preview URLs (e.g. brandguide-staging.vercel.app)
+    // have no brand mapping — show the app shell so the URL is directly usable.
+    if (host.endsWith('.vercel.app')) return { type: 'app' }
+
     if (MARKETING_HOSTS.includes(host)) return { type: 'marketing' }
     if (APP_HOSTS.includes(host)) return { type: 'app' }
 
-    if (host.endsWith('.' + BASE_DOMAIN)) {
-        const slug = host.slice(0, -(BASE_DOMAIN.length + 1))
-        // Guard against both reserved names and nested subdomains (a.b.guidr.space)
-        if (RESERVED_SUBDOMAINS.includes(slug) || slug.includes('.')) {
-            return { type: 'marketing' }
+    // Brand subdomains, resolved against the most-specific matching base.
+    for (const base of BASES) {
+        if (host === base) return { type: 'marketing' }
+        if (host.endsWith('.' + base)) {
+            const slug = host.slice(0, -(base.length + 1))
+            // Guard against reserved names and nested subdomains (a.b.<base>).
+            if (RESERVED_SUBDOMAINS.includes(slug) || slug.includes('.')) {
+                return { type: 'marketing' }
+            }
+            return { type: 'brand', brand: slug }
         }
-        return { type: 'brand', brand: slug }
     }
 
     // Anything else is a customer's own domain; needs a DB lookup to resolve.
