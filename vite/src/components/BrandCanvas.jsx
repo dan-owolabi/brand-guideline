@@ -1,0 +1,1086 @@
+import { useState, useEffect, useMemo } from 'react'
+import { NavLink, useParams, useNavigate } from 'react-router-dom'
+import { useBrandEditor } from '../hooks/useBrandEditor'
+import { getBlockComponent } from './blocks'
+import BlockWrapper from './editor/BlockWrapper'
+import { Dialog, DialogContent, DialogFooter } from './ui/Dialog'
+import { PublishModal } from './ui/PublishModal'
+import Header from './Header'
+import { Plus, Loader2, ChevronLeft, ChevronRight, Trash2, GripVertical, Copy, X } from 'lucide-react'
+import BlockTypeSwitcher from './editor/BlockTypeSwitcher'
+import FloatingTextToolbar from './editor/FloatingTextToolbar'
+import SlashMenu from './editor/SlashMenu'
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core'
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from '@dnd-kit/sortable'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import { CSS } from '@dnd-kit/utilities'
+
+import { getCanonicalUrl } from '../lib/brandResolver'
+
+/**
+ * BrandCanvas - The unified renderer/editor for brand guidelines.
+ * Same component serves both public (read-only) and admin (editable) views.
+ */
+export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
+    const params = useParams()
+    const navigate = useNavigate()
+    // For admin: params.slug is the section slug (route: /admin/brand/:brandId/:slug)
+    // For public: params.pageSlug is the section slug (route: /brand/:slug/:pageSlug)
+    const activeSlug = isAdmin ? params.slug : (params.pageSlug || params.slug)
+
+    // SEO: Set Canonical URL for public views
+    useEffect(() => {
+        if (isAdmin || !brandData?.slug) return
+
+        const canonicalUrl = getCanonicalUrl(brandData.slug)
+        let link = document.querySelector("link[rel='canonical']")
+
+        if (!link) {
+            link = document.createElement('link')
+            link.setAttribute('rel', 'canonical')
+            document.head.appendChild(link)
+        }
+
+        link.setAttribute('href', canonicalUrl)
+
+        // Cleanup NOT required strictly as we want it to persist, but good practice if SPA state changes drastically
+        // For now we leave it as valid for this page
+    }, [isAdmin, brandData?.slug])
+
+    // Use provided brandData (public) or fetch draft (admin)
+    const {
+        draft,
+        loading,
+        error,
+        publish,
+        updateBlock,
+        removeBlock,
+        updateSection,
+        addSection,
+        removeSection,
+        reorderBlocks,
+        reorderSections,
+        brandMetadata: adminBrandMetadata,
+        updateBrandMetadata,
+        undo,
+        redo
+    } = useBrandEditor(isAdmin ? params.brandId : null)
+
+    // For public view, use brandData directly; for admin, use hook metadata
+    const brandMetadata = isAdmin ? adminBrandMetadata : {
+        id: brandData?.brandId,
+        name: brandData?.name,
+        logoUrl: brandData?.logoUrl,
+        primaryColor: brandData?.primaryColor
+    }
+
+    // Undo/Redo keyboard shortcuts
+    // Global undo/redo keyboard shortcuts - only when not editing text
+    useEffect(() => {
+        if (!isAdmin) return
+
+        const handleKeyDown = (e) => {
+            // Check if user is editing in a contenteditable element
+            const activeElement = document.activeElement
+            const isEditingText = activeElement?.closest('[contenteditable="true"]') ||
+                activeElement?.tagName === 'INPUT' ||
+                activeElement?.tagName === 'TEXTAREA'
+
+            // Only intercept Ctrl+Z when NOT editing text
+            // This allows native browser undo to work in text fields
+            if (!isEditingText && (e.metaKey || e.ctrlKey) && e.key === 'z') {
+                e.preventDefault()
+                if (e.shiftKey) {
+                    redo()
+                } else {
+                    undo()
+                }
+            }
+            // Also support Ctrl+Y for redo
+            if (!isEditingText && (e.metaKey || e.ctrlKey) && e.key === 'y') {
+                e.preventDefault()
+                redo()
+            }
+        }
+
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [isAdmin, undo, redo])
+
+    const [publishModalOpen, setPublishModalOpen] = useState(false)
+    const [publishSuccess, setPublishSuccess] = useState(false)
+    const [isPublishing, setIsPublishing] = useState(false)
+    // Initialize sidebar closed on mobile, open on desktop
+    const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768)
+    const [autoOpenMenuBlockId, setAutoOpenMenuBlockId] = useState(null)
+    const [sectionToDelete, setSectionToDelete] = useState(null)
+    const [addBlockMenuPos, setAddBlockMenuPos] = useState(null) // { top, left, insertIndex }
+
+    // Multi-select state
+    const [selectedBlockIds, setSelectedBlockIds] = useState(new Set())
+    const [lastSelectedBlockId, setLastSelectedBlockId] = useState(null)
+
+    // Inline add state for sidebar
+    const [addingGroup, setAddingGroup] = useState(false)
+    const [newGroupName, setNewGroupName] = useState('')
+    const [addingSubsection, setAddingSubsection] = useState(null) // group name string
+    const [newSubsectionName, setNewSubsectionName] = useState('')
+
+    // Use draft for admin, brandData for public
+    const data = isAdmin ? draft : brandData?.published
+    const sections = useMemo(() => data?.sections || [], [data?.sections])
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    )
+
+    // Group sections by their group property
+    // NOTE: All hooks must be called before any early returns to comply with React's Rules of Hooks
+    const groupedSections = useMemo(() => {
+        const groups = {}
+        sections.forEach(s => {
+            const g = s.group || 'General'
+            if (!groups[g]) groups[g] = []
+            groups[g].push(s)
+        })
+        return groups
+    }, [sections])
+
+    // Find current active section
+    const activeSection = useMemo(() => {
+        if (!activeSlug) return sections[0]
+        return sections.find(s => s.slug === activeSlug) || sections[0]
+    }, [activeSlug, sections])
+
+    // Extract H2/H3 for current section
+    const subheadings = useMemo(() => {
+        if (!activeSection?.blocks) return []
+        return activeSection.blocks
+            .filter(b => b.type === 'text' && b.content?.variant === 'heading2')
+            .map(b => ({
+                id: b.id,
+                text: b.content?.text,
+                variant: b.content?.variant
+            }))
+    }, [activeSection])
+
+    // Helper to decode HTML entities in text (runs twice to handle double-encoding)
+    const decodeEntities = (text) => {
+        if (!text) return text
+        const textarea = document.createElement('textarea')
+        // First decode
+        textarea.innerHTML = text
+        let decoded = textarea.value
+        // Second decode to handle double-encoded entities (e.g., &amp; stored as literal text)
+        textarea.innerHTML = decoded
+        return textarea.value
+    }
+
+    // Early returns for loading and error states - AFTER all hooks
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <Loader2 className="animate-spin text-gray-400" />
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <div className="bg-red-50 text-red-600 p-4 rounded-lg max-w-md text-center">
+                    <h3 className="font-bold mb-2">Error Loading Brand</h3>
+                    <p>{error}</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (loading && !brandData) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="animate-spin text-gray-400" size={32} />
+                    <p className="text-sm font-medium text-gray-500">Loading guidelines...</p>
+                </div>
+            </div>
+        )
+    }
+
+    const handleDragEnd = (event) => {
+        const { active, over } = event
+        if (over && active.id !== over.id) {
+            const oldIndex = activeSection.blocks.findIndex((b) => b.id === active.id)
+            const newIndex = activeSection.blocks.findIndex((b) => b.id === over.id)
+            reorderBlocks(activeSection.id, oldIndex, newIndex)
+        }
+    }
+
+    const handleSectionDragEnd = (event) => {
+        const { active, over } = event
+
+        if (over && active.id !== over.id) {
+            const allSections = data?.sections || []
+            const oldIndex = allSections.findIndex((s) => s.id === active.id)
+            const newIndex = allSections.findIndex((s) => s.id === over.id)
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const draggedSection = allSections[oldIndex]
+                const targetSection = allSections[newIndex]
+
+                let newSections = arrayMove(allSections, oldIndex, newIndex)
+
+                // If dropped into a different group, inherit the target's group
+                if (draggedSection.group !== targetSection.group) {
+                    newSections = newSections.map(s =>
+                        s.id === active.id ? { ...s, group: targetSection.group } : s
+                    )
+                }
+
+                reorderSections(newSections)
+            }
+        }
+    }
+
+    const activeSectionIndex = sections.findIndex(s => s.id === activeSection?.id)
+    const prevSection = activeSectionIndex > 0 ? sections[activeSectionIndex - 1] : null
+    const nextSection = activeSectionIndex < sections.length - 1 ? sections[activeSectionIndex + 1] : null
+
+    const handlePublishClick = () => {
+        setPublishModalOpen(true)
+    }
+
+    const handleConfirmPublish = async (slug, mode) => {
+        setIsPublishing(true)
+        try {
+            await publish({ slug, mode })
+            setPublishSuccess(true)
+            setPublishModalOpen(false)
+            setTimeout(() => setPublishSuccess(false), 3000)
+        } catch (err) {
+            alert('Failed to publish: ' + err.message)
+        } finally {
+            setIsPublishing(false)
+        }
+    }
+
+    const handleAddSection = () => {
+        setNewGroupName('')
+        setAddingGroup(true)
+    }
+
+    const handleConfirmNewGroup = () => {
+        const groupName = newGroupName.trim()
+        setAddingGroup(false)
+        setNewGroupName('')
+        if (!groupName) return
+        const slug = groupName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+        addSection({
+            title: 'Untitled',
+            slug,
+            group: groupName,
+            blocks: [{ id: crypto.randomUUID(), type: 'text', content: { text: '', variant: 'paragraph' } }]
+        })
+        const brandId = brandData?.brandId || params.brandId
+        navigate(`/admin/brand/${brandId}/${slug}`)
+    }
+
+    const handleConfirmNewSubsection = (groupName) => {
+        const title = newSubsectionName.trim()
+        setAddingSubsection(null)
+        setNewSubsectionName('')
+        if (!title) return
+        const slug = title.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+        addSection({
+            title,
+            slug,
+            group: groupName,
+            blocks: [{ id: crypto.randomUUID(), type: 'text', content: { text: '', variant: 'paragraph' } }]
+        })
+        const brandId = brandData?.brandId || params.brandId
+        navigate(`/admin/brand/${brandId}/${slug}`)
+    }
+
+    const handleRemoveSection = () => {
+        if (!sectionToDelete) return
+        removeSection(sectionToDelete)
+        setSectionToDelete(null)
+        const brandId = brandData?.brandId || params.brandId
+        navigate(`/admin/brand/${brandId}/introduction`)
+    }
+
+    const handleBlockUpdate = (blockIndex, newContent) => {
+        if (!activeSection) return
+        updateBlock(activeSection.id, blockIndex, newContent)
+    }
+
+    const handleAddBlock = (atIndex, newBlockOrBlocks, autoOpen = false) => {
+        if (!activeSection) return
+        const blocks = [...(activeSection.blocks || [])]
+
+        if (Array.isArray(newBlockOrBlocks)) {
+            blocks.splice(atIndex, 0, ...newBlockOrBlocks)
+            // Auto open first one? Or none?
+        } else {
+            blocks.splice(atIndex, 0, newBlockOrBlocks)
+        }
+
+        updateSection(activeSection.id, { blocks })
+
+        if (autoOpen && !Array.isArray(newBlockOrBlocks)) {
+            setAutoOpenMenuBlockId(newBlockOrBlocks.id)
+            setTimeout(() => setAutoOpenMenuBlockId(null), 100)
+        }
+    }
+
+    const confirmDeleteBlock = (index) => {
+        if (!activeSection) return
+        removeBlock(activeSection.id, index)
+    }
+
+    const handleCopyBlock = async (index) => {
+        if (!activeSection || !activeSection.blocks?.[index]) return
+        const block = activeSection.blocks[index]
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(block))
+        } catch (err) {
+            console.error('Failed to copy block:', err)
+        }
+    }
+
+    // Multi-select handlers
+    const handleBlockSelect = (blockId, e) => {
+        if (!activeSection) return
+        e.stopPropagation() // Prevent clearing selection when clicking a block handler
+
+        const isShift = e.shiftKey
+
+        const newSelected = new Set(selectedBlockIds)
+
+        if (isShift && lastSelectedBlockId && activeSection.blocks.some(b => b.id === lastSelectedBlockId)) {
+            // Range selection
+            const blocks = activeSection.blocks
+            const lastIndex = blocks.findIndex(b => b.id === lastSelectedBlockId)
+            const currentIndex = blocks.findIndex(b => b.id === blockId)
+
+            const start = Math.min(lastIndex, currentIndex)
+            const end = Math.max(lastIndex, currentIndex)
+
+            for (let i = start; i <= end; i++) {
+                newSelected.add(blocks[i].id)
+            }
+        } else {
+            // Toggle selection - clicking a checkbox adds/removes from selection
+            if (selectedBlockIds.has(blockId)) {
+                newSelected.delete(blockId)
+            } else {
+                newSelected.add(blockId)
+            }
+            setLastSelectedBlockId(blockId)
+        }
+
+        setSelectedBlockIds(newSelected)
+    }
+
+    const clearSelection = () => {
+        setSelectedBlockIds(new Set())
+        setLastSelectedBlockId(null)
+    }
+
+    // Bulk actions
+    const handleBulkDelete = () => {
+        if (!activeSection || selectedBlockIds.size === 0) return
+        if (!confirm(`Delete ${selectedBlockIds.size} blocks?`)) return
+
+        const newBlocks = activeSection.blocks.filter(b => !selectedBlockIds.has(b.id))
+        updateSection(activeSection.id, { blocks: newBlocks })
+        clearSelection()
+    }
+
+    const handleBulkCopy = async () => {
+        if (!activeSection || selectedBlockIds.size === 0) return
+        const blocksToCopy = activeSection.blocks.filter(b => selectedBlockIds.has(b.id))
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(blocksToCopy))
+        } catch (err) {
+            console.error('Failed to copy blocks:', err)
+        }
+    }
+
+    const handleTransformBlock = (blockIndex, newType, newVariant) => {
+        if (!activeSection) return
+        const blocks = [...activeSection.blocks]
+        const block = blocks[blockIndex]
+        if (!block) return
+
+        blocks[blockIndex] = {
+            ...block,
+            type: newType,
+            content: {
+                ...block.content,
+                variant: newVariant
+            }
+        }
+        updateSection(activeSection.id, { blocks })
+    }
+
+    const navigateToSection = (section) => {
+        if (!section) return
+        if (isAdmin) {
+            const brandId = brandData?.brandId || params.brandId
+            navigate(`/admin/brand/${brandId}/${section.slug}`)
+        } else {
+            const brandSlug = brandData?.slug || params.slug
+            const path = basePath !== undefined ? basePath : `/brand/${brandSlug}`
+            navigate(`${path}/${section.slug}`)
+        }
+    }
+
+    return (
+        <div className="min-h-screen bg-[#FAFAFA] selection:bg-black selection:text-white" onClick={clearSelection}>
+            {isAdmin && <FloatingTextToolbar />}
+            <Header
+                brand={brandMetadata}
+                isAdmin={isAdmin}
+                onPublish={handlePublishClick}
+                isPublishing={isPublishing}
+                publishSuccess={publishSuccess}
+                sidebarOpen={sidebarOpen}
+                onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+                onUpdateBrand={updateBrandMetadata}
+                basePath={basePath}
+                publishMode={isAdmin ? undefined : brandMetadata?.publishMode}
+            />
+
+            <div className="flex pt-20 md:pt-28 min-h-screen max-w-[1600px] mx-auto relative">
+                {/* Sidebar */}
+                <aside className={`
+                    fixed md:sticky left-0 top-20 md:top-28 bottom-0 w-64 md:w-72 bg-white md:bg-transparent border-r border-gray-100 md:border-none flex flex-col transition-all duration-300 z-40 md:h-[calc(100vh-8rem)]
+                    ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full md:w-0 md:translate-x-0 md:border-none md:opacity-0 pointer-events-none md:pointer-events-none'}
+                `}>
+                    <nav className="flex-1 px-6 py-8 min-w-[16rem] overflow-y-auto custom-scrollbar md:pr-4">
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleSectionDragEnd}
+                            modifiers={[restrictToVerticalAxis]}
+                        >
+                            {Object.entries(groupedSections).map(([groupName, groupSections], groupIndex) => {
+                                const isRedundantHeader = groupSections.length === 1 &&
+                                    (groupSections[0].title || '').trim().toLowerCase() === groupName.trim().toLowerCase()
+
+                                return (
+                                    <div key={groupName} className={groupIndex === 0 ? '' : 'pt-4'}>
+                                        {!isRedundantHeader && (
+                                            <div className="flex items-center justify-between group/group mb-2">
+                                                <h3
+                                                    className={`text-[14px] font-semibold text-[#111] ${isAdmin ? 'cursor-text hover:text-gray-600' : ''}`}
+                                                    contentEditable={isAdmin}
+                                                    suppressContentEditableWarning
+                                                    onBlur={(e) => {
+                                                        const updated = e.currentTarget.textContent.trim()
+                                                        if (isAdmin && updated && updated !== groupName) {
+                                                            groupSections.forEach(section => {
+                                                                updateSection(section.id, { group: updated })
+                                                            })
+                                                        }
+                                                    }}
+                                                >
+                                                    {groupName}
+                                                </h3>
+                                            </div>
+                                        )}
+                                        <SortableContext
+                                            items={groupSections.map(s => s.id)}
+                                            strategy={verticalListSortingStrategy}
+                                        >
+                                            <ul className="space-y-0.5 pl-4">
+                                                {groupSections.map((section) => (
+                                                    <SidebarSectionItem
+                                                        key={section.id}
+                                                        section={section}
+                                                        isAdmin={isAdmin}
+                                                        activeSectionId={activeSection?.id}
+                                                        brandId={params.brandId}
+                                                        brandSlug={brandData?.slug || params.slug}
+                                                        setSectionToDelete={setSectionToDelete}
+                                                        subheadings={activeSection?.id === section.id ? subheadings : []}
+                                                        sectionsCount={data?.sections?.length || 0}
+                                                        basePath={basePath}
+                                                    />
+                                                ))}
+                                            </ul>
+                                        </SortableContext>
+                                        {/* Inline add subsection input or button */}
+                                        {isAdmin && (
+                                            addingSubsection === groupName ? (
+                                                <div className="pl-4 mt-1">
+                                                    <input
+                                                        autoFocus
+                                                        type="text"
+                                                        value={newSubsectionName}
+                                                        onChange={e => setNewSubsectionName(e.target.value)}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleConfirmNewSubsection(groupName)
+                                                            if (e.key === 'Escape') { setAddingSubsection(null); setNewSubsectionName('') }
+                                                        }}
+                                                        onBlur={() => handleConfirmNewSubsection(groupName)}
+                                                        placeholder="Subsection name..."
+                                                        className="w-full text-[13px] px-2 py-1 border border-gray-200 rounded-md outline-none focus:border-gray-400 bg-white"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => { setAddingSubsection(groupName); setNewSubsectionName('') }}
+                                                    className="pl-6 mt-0.5 flex items-center gap-1.5 text-[12px] text-gray-300 hover:text-gray-500 transition-colors py-0.5"
+                                                >
+                                                    <Plus size={11} /> Add subsection
+                                                </button>
+                                            )
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </DndContext>
+                        {isAdmin && (
+                            addingGroup ? (
+                                <div className="mt-3">
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        value={newGroupName}
+                                        onChange={e => setNewGroupName(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') handleConfirmNewGroup()
+                                            if (e.key === 'Escape') { setAddingGroup(false); setNewGroupName('') }
+                                        }}
+                                        onBlur={handleConfirmNewGroup}
+                                        placeholder="Section name..."
+                                        className="w-full text-[13px] px-2 py-1 border border-gray-200 rounded-md outline-none focus:border-gray-400 bg-white"
+                                    />
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleAddSection}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors mt-2"
+                                >
+                                    <Plus size={16} /> Add section
+                                </button>
+                            )
+                        )}
+                    </nav>
+
+                    {/* Profile Section */}
+                    {isAdmin && (
+                        <div className="p-6 bg-white border-t border-gray-100 flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex-shrink-0" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-900">Danny O.</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </aside>
+
+                {/* Main Content */}
+                <main className={`flex-1 pt-8 md:pt-0 pb-24 px-4 md:px-12 lg:px-20 transition-all duration-300 ${sidebarOpen ? '' : 'md:-ml-0'}`}>
+                    <article className="max-w-[900px] mx-auto pb-24 bg-white md:rounded-[40px] md:shadow-float md:border md:border-black/5 p-6 md:p-16 lg:p-20 min-h-[calc(100vh-10rem)]">
+                        {activeSection && (
+                            <>
+                                {/* Section Title */}
+                                <h1
+                                    className={`text-3xl md:text-4xl font-bold text-gray-900 mb-6 md:mb-10 tracking-tight leading-tight ${isAdmin ? 'cursor-text hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors' : ''}`}
+                                    contentEditable={isAdmin}
+                                    suppressContentEditableWarning
+                                    onBlur={(e) => {
+                                        if (isAdmin && e.currentTarget.textContent !== activeSection.title) {
+                                            updateSection(activeSection.id, { title: e.currentTarget.textContent })
+                                        }
+                                    }}
+                                >
+                                    {activeSection.title}
+                                </h1>
+
+                                {/* Blocks List */}
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
+                                    modifiers={[restrictToVerticalAxis]}
+                                >
+                                    <div className="space-y-1 relative group/blocks numbered-list-container">
+                                        <SortableContext
+                                            items={activeSection.blocks?.map(b => b.id) || []}
+                                            strategy={verticalListSortingStrategy}
+                                        >
+                                            {activeSection.blocks?.map((block, index) => {
+                                                const BlockComponent = getBlockComponent(block.type)
+                                                return (
+                                                    <div
+                                                        key={block.id}
+                                                        className="group/block relative -ml-16 pl-16 rounded-lg transition-colors"
+                                                    >
+                                                        {/* Hover "+" Button Between Blocks */}
+                                                        {isAdmin && (
+                                                            <div className="absolute -top-5 left-0 right-0 h-6 z-[60] hidden group-hover/block:flex items-center justify-center pointer-events-none">
+                                                                <button
+                                                                    className="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 rounded-full shadow-sm transition-all pointer-events-auto opacity-0 group-hover/block:opacity-100"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        const rect = e.currentTarget.getBoundingClientRect()
+                                                                        setAddBlockMenuPos({
+                                                                            top: rect.bottom + 4,
+                                                                            left: rect.left - 100,
+                                                                            insertIndex: index
+                                                                        })
+                                                                    }}
+                                                                >
+                                                                    <Plus size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        <BlockWrapper
+                                                            isAdmin={isAdmin}
+                                                            blockId={block.id}
+                                                        >
+                                                            <DndBlockContent
+                                                                isAdmin={isAdmin}
+                                                                index={index}
+                                                                block={block}
+                                                                BlockComponent={BlockComponent}
+                                                                confirmDeleteBlock={confirmDeleteBlock}
+                                                                handleCopyBlock={handleCopyBlock}
+                                                                handleBlockUpdate={handleBlockUpdate}
+                                                                handleTransformBlock={handleTransformBlock}
+                                                                handleAddBlock={handleAddBlock}
+                                                                autoOpenMenuBlockId={autoOpenMenuBlockId}
+                                                                isSelected={selectedBlockIds.has(block.id)}
+                                                                onSelect={(e) => handleBlockSelect(block.id, e)}
+                                                                brand={brandMetadata}
+                                                            />
+                                                        </BlockWrapper>
+
+                                                        {/* Bottom "Click to add" for last block */}
+                                                        {isAdmin && index === (activeSection.blocks?.length - 1) && (
+                                                            <div
+                                                                className="relative mt-4 py-3 text-gray-300 hover:text-gray-500 cursor-text transition-colors"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const rect = e.currentTarget.getBoundingClientRect()
+                                                                    setAddBlockMenuPos({
+                                                                        top: rect.top,
+                                                                        left: rect.left,
+                                                                        insertIndex: index + 1
+                                                                    })
+                                                                }}
+                                                            >
+                                                                <span className="text-sm">Click to add a block, or type "/" for commands</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </SortableContext>
+                                    </div>
+                                </DndContext>
+
+                                {/* Bottom "Type '/' to insert" area */}
+                                {isAdmin && (!activeSection.blocks || activeSection.blocks.length === 0) && (
+                                    <div
+                                        className="relative group/new h-12 flex items-center text-gray-300 hover:text-gray-400 cursor-text"
+                                        onClick={(e) => {
+                                            const rect = e.currentTarget.getBoundingClientRect()
+                                            setAddBlockMenuPos({
+                                                top: rect.top,
+                                                left: rect.left,
+                                                insertIndex: 0
+                                            })
+                                        }}
+                                    >
+                                        <div className="flex gap-3 items-center opacity-0 group-hover/new:opacity-100 transition-opacity">
+                                            <Plus size={18} />
+                                            <span className="text-sm font-medium">Click to add a block</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Add Block Menu */}
+                                {addBlockMenuPos && (
+                                    <div style={{ position: 'fixed', top: addBlockMenuPos.top, left: addBlockMenuPos.left, zIndex: 100 }}>
+                                        <SlashMenu
+                                            position={{ top: 0, left: 0 }}
+                                            onSelect={(itemOrItems) => {
+                                                if (Array.isArray(itemOrItems)) {
+                                                    // Handle paste (array of blocks)
+                                                    // Renew IDs to avoid duplicates if pasting in same doc
+                                                    const newBlocks = itemOrItems.map(b => ({
+                                                        ...b,
+                                                        id: crypto.randomUUID()
+                                                    }))
+                                                    handleAddBlock(addBlockMenuPos.insertIndex, newBlocks)
+                                                } else {
+                                                    // Handle single block creation
+                                                    let content = {}
+
+                                                    if (itemOrItems.variant) {
+                                                        // Text block with variant
+                                                        content = { text: '', variant: itemOrItems.variant }
+                                                    } else if (itemOrItems.listType) {
+                                                        // List block
+                                                        content = { items: [''], listType: itemOrItems.listType }
+                                                    }
+
+                                                    const newBlock = {
+                                                        id: crypto.randomUUID(),
+                                                        type: itemOrItems.type,
+                                                        content
+                                                    }
+                                                    handleAddBlock(addBlockMenuPos.insertIndex, newBlock, itemOrItems.type === 'text')
+                                                }
+                                                setAddBlockMenuPos(null)
+                                            }}
+                                            onClose={() => setAddBlockMenuPos(null)}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Navigation Footer */}
+                                <div className="mt-32 pt-12 border-t border-black/5">
+                                    <div className="grid grid-cols-2 gap-8">
+                                        {prevSection ? (
+                                            <button
+                                                onClick={() => {
+                                                    navigateToSection(prevSection)
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                                }}
+                                                className="flex flex-col items-start gap-2 p-6 rounded-3xl bg-gray-50 hover:bg-black/5 hover:scale-[1.02] active:scale-[0.98] transition-all group text-left border border-transparent hover:border-black/5"
+                                            >
+                                                <div className="flex items-center gap-2 text-gray-400 group-hover:text-black transition-colors font-semibold text-xs tracking-wider uppercase">
+                                                    <ChevronLeft size={16} /> Previous
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-500 mb-1">{decodeEntities(prevSection?.group)}</p>
+                                                    <p className="text-lg font-bold text-gray-900 group-hover:text-black">{decodeEntities(prevSection?.title)}</p>
+                                                </div>
+                                            </button>
+                                        ) : <div></div>}
+
+                                        {nextSection ? (
+                                            <button
+                                                onClick={() => {
+                                                    navigateToSection(nextSection)
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                                }}
+                                                className="flex flex-col items-end gap-2 p-6 rounded-3xl bg-gray-50 hover:bg-black/5 hover:scale-[1.02] active:scale-[0.98] transition-all group text-right border border-transparent hover:border-black/5"
+                                            >
+                                                <div className="flex items-center gap-2 text-gray-400 group-hover:text-black transition-colors font-semibold text-xs tracking-wider uppercase">
+                                                    Next <ChevronRight size={16} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-500 mb-1">{decodeEntities(nextSection?.group)}</p>
+                                                    <p className="text-lg font-bold text-gray-900 group-hover:text-black">{decodeEntities(nextSection?.title)}</p>
+                                                </div>
+                                            </button>
+                                        ) : <div></div>}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </article>
+                </main>
+            </div>
+
+            <Dialog open={sectionToDelete !== null} onOpenChange={(open) => !open && setSectionToDelete(null)}>
+                <DialogContent>
+                    <div className="text-center">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Section?</h3>
+                        <p className="text-sm text-gray-500 mb-6">
+                            Are you sure you want to delete this section? This action cannot be undone.
+                        </p>
+                        <DialogFooter>
+                            <button
+                                onClick={() => setSectionToDelete(null)}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRemoveSection}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                            >
+                                Delete
+                            </button>
+                        </DialogFooter>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Multi-select Action Bar */}
+            {selectedBlockIds.size > 0 && (
+                <div
+                    className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-gray-900 text-white px-4 py-2 rounded-full shadow-xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <span className="text-sm font-medium pl-2 border-r border-gray-700 pr-4">
+                        {selectedBlockIds.size} selected
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={handleBulkCopy}
+                            className="p-2 hover:bg-gray-800 rounded-full transition-colors flex items-center gap-2 group"
+                            title="Copy selected blocks"
+                        >
+                            <Copy size={16} />
+                            <span className="text-xs font-medium">Copy JSON</span>
+                        </button>
+                        <button
+                            onClick={handleBulkDelete}
+                            className="p-2 hover:bg-red-900/50 text-red-200 hover:text-red-100 rounded-full transition-colors flex items-center gap-2"
+                            title="Delete selected blocks"
+                        >
+                            <Trash2 size={16} />
+                            <span className="text-xs font-medium">Delete</span>
+                        </button>
+                    </div>
+                    <div className="border-l border-gray-700 pl-2 ml-1">
+                        <button
+                            onClick={clearSelection}
+                            className="p-1 hover:bg-gray-800 rounded-full transition-colors"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <PublishModal
+                isOpen={publishModalOpen}
+                onClose={() => setPublishModalOpen(false)}
+                onConfirm={handleConfirmPublish}
+                // Fallback to name-based slug if not set
+                initialSlug={brandMetadata?.slug || (brandMetadata?.name ? brandMetadata.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')}
+                brandName={brandMetadata?.name}
+                isPublishing={isPublishing}
+            />
+        </div>
+    )
+}
+
+// Sub-component to handle dragHandleProps injection correctly
+function DndBlockContent({
+    isAdmin,
+    index,
+    block,
+    // eslint-disable-next-line no-unused-vars -- used as a JSX tag below; core no-unused-vars doesn't track that for params
+    BlockComponent,
+    confirmDeleteBlock,
+    handleCopyBlock,
+    handleBlockUpdate,
+    handleTransformBlock,
+    handleAddBlock,
+    autoOpenMenuBlockId,
+    dragHandleProps,
+    isSelected,
+    onSelect,
+    brand
+}) {
+    const content = block.content || block.data || {}
+    const isTight = content.tightSpacing === true
+
+    const toggleTightSpacing = () => {
+        handleBlockUpdate(index, { ...content, tightSpacing: !isTight })
+    }
+
+    return (
+        <div
+            className={`flex items-baseline gap-4 relative transition-all duration-200 ${isTight ? 'block-tight' : ''} ${isSelected ? 'bg-blue-50/50 -mx-4 px-4 rounded-lg ring-1 ring-blue-500/20' : ''}`}
+        >
+            {/* Side Controls (Admin Only) */}
+            {isAdmin && (
+                <div
+                    className={`w-0 flex-none transition-opacity z-[70] ${isSelected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100'}`}
+                    onClick={(e) => {
+                        // Allow clicking empty space in controls to select (if not clicking a button)
+                        if (e.target === e.currentTarget || e.target.classList.contains('control-area')) {
+                            onSelect(e)
+                        }
+                    }}
+                >
+                    <div className="control-area w-[250px] -ml-[250px] flex items-center justify-end gap-1 pr-2">
+                        {/* Box Selection Checkbox (visible on hover or selected) */}
+                        <div
+                            className={`w-4 h-4 border rounded mr-1 cursor-pointer flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onSelect(e)
+                            }}
+                        >
+                            {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                        </div>
+
+                        {/* Tight spacing toggle */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); toggleTightSpacing(); }}
+                            className={`p-1.5 transition-colors rounded hover:bg-gray-100 flex items-center justify-center ${isTight ? 'text-blue-600' : 'text-gray-300 hover:text-gray-900'}`}
+                            title={isTight ? "Remove tight spacing" : "Reduce spacing above"}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <line x1="2" y1="4" x2="14" y2="4" />
+                                <line x1="2" y1="8" x2="14" y2="8" />
+                                <path d="M8 5.5 L6 7.5 M8 5.5 L10 7.5" strokeLinecap="round" />
+                            </svg>
+                        </button>
+
+                        <div
+                            {...dragHandleProps}
+                            className="p-1.5 text-gray-300 hover:text-gray-900 cursor-grab active:cursor-grabbing transition-colors rounded hover:bg-gray-100 flex items-center justify-center drag-handle"
+                            title="Drag to reorder"
+                            onClick={(e) => {
+                                // Optional: Allow click on drag handle to select too
+                                if (!e.defaultPrevented) onSelect(e)
+                            }}
+                        >
+                            <GripVertical size={16} />
+                        </div>
+
+                        <BlockTypeSwitcher
+                            block={block}
+                            onTransform={(type, variant) => handleTransformBlock(index, type, variant)}
+                        />
+
+                        {/* Copy button */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleCopyBlock(index); }}
+                            className="p-1.5 text-gray-300 hover:text-gray-900 transition-colors rounded hover:bg-gray-100 flex items-center justify-center"
+                            title="Copy block JSON"
+                        >
+                            <Copy size={16} />
+                        </button>
+
+                        <button
+                            onClick={(e) => { e.stopPropagation(); confirmDeleteBlock(index); }}
+                            className="p-1.5 text-gray-300 hover:text-red-600 transition-colors rounded hover:bg-gray-100 flex items-center justify-center"
+                            title="Delete block"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+
+            <div className="flex-1 min-w-0">
+                <BlockComponent
+                    content={content}
+                    isAdmin={isAdmin}
+                    onUpdate={(newData) => handleBlockUpdate(index, newData)}
+                    onTransform={(type, variant) => handleTransformBlock(index, type, variant)}
+                    onAddNext={(variant) => handleAddBlock(index + 1, {
+                        id: crypto.randomUUID(),
+                        type: 'text',
+                        content: { text: '', variant: variant || 'paragraph' }
+                    }, true)}
+                    autoOpen={autoOpenMenuBlockId === block.id}
+                    brand={brand}
+                />
+            </div>
+        </div>
+    )
+}
+
+function SidebarSectionItem({ section, isAdmin, activeSectionId, brandId, brandSlug, setSectionToDelete, subheadings, sectionsCount, basePath }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: section.id,
+        disabled: !isAdmin
+    })
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        position: 'relative',
+        zIndex: isDragging ? 999 : 'auto'
+    }
+
+    const isActive = activeSectionId === section.id
+
+    // Simple entity decoder
+    const title = (section.title || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
+    return (
+        <li ref={setNodeRef} style={style} {...attributes}>
+            <div className={`flex items-center justify-between group/item relative ${isActive ? '' : 'hover:bg-gray-50'} rounded-md`}>
+                {/* Drag Handle - Only visible on hover if admin */}
+                {isAdmin && (
+                    <div {...listeners} className="absolute -left-5 top-1/2 -translate-y-1/2 p-1 text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing opacity-0 group-hover/item:opacity-100 transition-opacity z-10">
+                        <GripVertical size={12} />
+                    </div>
+                )}
+
+                <NavLink
+                    to={isAdmin
+                        ? `/admin/brand/${brandId}/${section.slug}`
+                        : `${basePath !== undefined ? basePath : `/brand/${brandSlug}`}/${section.slug}`
+                    }
+                    className={`flex-1 py-1 px-2 rounded-md transition-all text-[13px] tracking-tight ${isActive ? 'font-medium text-gray-900 bg-gray-100' : 'font-normal text-gray-500'}`}
+                >
+                    {title}
+                </NavLink>
+                {isAdmin && sectionsCount > 1 && (
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity bg-white/50 backdrop-blur-sm rounded z-10">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setSectionToDelete(section.id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    </div>
+                )}
+            </div>
+            {isActive && subheadings.length > 0 && (
+                <ul className="mt-1 ml-4 space-y-1">
+                    {subheadings.map(sub => (
+                        <li key={sub.id}>
+                            <a
+                                href={`#${sub.id}`}
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    document.getElementById(sub.id)?.scrollIntoView({ behavior: 'smooth' })
+                                }}
+                                className="block py-1 pl-4 text-[13px] font-light text-[#868585] transition-colors hover:text-[#1c1c1c]"
+                            >
+                                {sub.text || 'Untitled'}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </li>
+    )
+}

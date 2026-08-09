@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tee /private/tmp/claude-501/-Users-danny-Documents-Building-brand-guideline/19968f7a-0789-4f3e-9c8a-72e28ac1d2ae/scratchpad/dev.log)",
+      "Bash(git checkout *)",
+      "Bash(npx vite *)",
+      "Bash(awk '{print $5, $9}')"
+    ]
+  }
+}

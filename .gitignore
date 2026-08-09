@@ -6,11 +6,15 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+migration_log*.txt
 
 node_modules
 dist
 dist-ssr
 *.local
+.env
+tsconfig.tsbuildinfo
+.vercel
 
 # Editor directories and files
 .vscode/*
