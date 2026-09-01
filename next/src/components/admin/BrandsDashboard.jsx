@@ -654,7 +654,16 @@ export default function BrandsDashboard() {
                                             <img
                                                 src={brand.banner_url}
                                                 alt={brand.name}
-                                                className="absolute inset-0 w-full h-full object-cover rounded-t-2xl opacity-90 mix-blend-overlay"
+                                                /*
+                                                  No blend mode here on purpose.
+                                                  `mix-blend-overlay` composites the banner against
+                                                  the card's primary_color, which erases the artwork
+                                                  entirely whenever that colour is black — Inovarsity
+                                                  and Aravint both use #000000 and rendered as solid
+                                                  black tiles. Rounded corners are kept; the blend is
+                                                  not.
+                                                */
+                                                className="absolute inset-0 w-full h-full object-cover rounded-t-2xl"
                                             />
                                         )}
                                     </div>
