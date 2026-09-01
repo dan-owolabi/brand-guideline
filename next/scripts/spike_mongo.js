@@ -188,7 +188,7 @@ async function main() {
             await col.insertOne({ _id: randomUUID(), slug: 'taken' })
         } catch (err) {
             if (err.code === 11000) return 'E11000 as expected'
-            throw new Error(`expected 11000, got ${err.code}`)
+            throw new Error(`expected 11000, got ${err.code}`, { cause: err })
         }
         throw new Error('duplicate slug was accepted')
     })
@@ -239,32 +239,71 @@ async function main() {
     }
 
     // ---------------------------------------------------------------
-    // 8. bcrypt verification — decides whether users keep their passwords
+    // 8. Supabase password hashes are PORTABLE bcrypt
     //
-    // Better Auth hashes with scrypt by default. Supabase stores bcrypt MCF.
-    // If bcrypt can be verified, imported users log in with their existing
-    // password. If not, everyone needs a reset at cutover.
+    // SCOPE, precisely: this proves Supabase stores standard bcrypt Modular
+    // Crypt Format — not a Supabase-specific KDF — and that an off-the-shelf
+    // bcrypt library verifies it. That is the part that would be fatal if
+    // false, because a proprietary KDF cannot be migrated at all.
+    //
+    // It does NOT prove Better Auth can be configured to use bcrypt (it
+    // defaults to scrypt). That needs better-auth installed and is a PHASE 5
+    // gate item. Passing here means "migration is possible"; it does not yet
+    // mean "no forced password reset".
     // ---------------------------------------------------------------
     if (!BCRYPT_HASH) {
         record(
-            'bcrypt hash verifies',
+            'Supabase hash is portable bcrypt',
             'SKIP',
-            'set SUPABASE_BCRYPT_HASH to a real hash from auth.users',
+            'set SUPABASE_BCRYPT_HASH (+ SUPABASE_BCRYPT_PLAINTEXT) from a real auth.users row',
             false
         )
     } else {
-        await check('bcrypt hash verifies against a known password', async () => {
+        await check('Supabase hash is portable bcrypt', async () => {
+            // Format first: $2a$ / $2b$ / $2y$ + cost. A hash that is not MCF
+            // bcrypt means the import plan needs rethinking, whatever any
+            // library happens to return.
+            const mcf = /^\$2[aby]\$(\d{2})\$[./A-Za-z0-9]{53}$/.exec(BCRYPT_HASH)
+            if (!mcf) {
+                throw new Error(
+                    `not bcrypt MCF (starts "${BCRYPT_HASH.slice(0, 4)}") — ` +
+                    'passwords cannot be carried over; plan a forced reset'
+                )
+            }
+
             let bcrypt
             try {
-                bcrypt = await import('bcryptjs')
-            } catch {
-                throw new Error('bcryptjs not installed — run: npm i -D bcryptjs')
+                bcrypt = (await import('bcryptjs')).default ?? (await import('bcryptjs'))
+            } catch (err) {
+                throw new Error('bcryptjs not installed — run: npm i -D bcryptjs', { cause: err })
             }
+
+            // Prove the library round-trips THIS hash's exact variant and cost
+            // without needing anyone's real password: hash a known string at
+            // the same parameters and verify it. If bcryptjs could not handle
+            // $2a$ at cost N, this is where it would fail.
+            const probe = 'migration-probe-password'
+            const reHashed = await bcrypt.hash(probe, Number(mcf[1]))
+            if (!/^\$2[aby]\$/.test(reHashed)) throw new Error('bcryptjs produced an unexpected format')
+            if (!(await bcrypt.compare(probe, reHashed))) {
+                throw new Error('bcryptjs failed its own round-trip at this cost')
+            }
+            // And confirm a wrong password is rejected against the REAL hash —
+            // this exercises the actual stored value, not a synthetic one.
+            if (await bcrypt.compare(probe, BCRYPT_HASH)) {
+                throw new Error('a random probe matched the real hash — something is very wrong')
+            }
+
             const plain = process.env.SUPABASE_BCRYPT_PLAINTEXT
-            if (!plain) throw new Error('set SUPABASE_BCRYPT_PLAINTEXT to that user\'s password')
-            const ok = await (bcrypt.default ?? bcrypt).compare(plain, BCRYPT_HASH)
-            if (!ok) throw new Error('bcrypt.compare returned false — wrong password or unsupported MCF variant')
-            return `verified ${BCRYPT_HASH.slice(0, 7)}… — no forced reset needed`
+            if (!plain) {
+                return `portable bcrypt, cost ${mcf[1]}; library round-trips the same variant ` +
+                       '(set SUPABASE_BCRYPT_PLAINTEXT to also verify a real login)'
+            }
+
+            if (!(await bcrypt.compare(plain, BCRYPT_HASH))) {
+                throw new Error('bcrypt.compare returned false — wrong plaintext, or an unexpected variant')
+            }
+            return `verified against a real password (bcrypt, cost ${mcf[1]})`
         })
     }
 

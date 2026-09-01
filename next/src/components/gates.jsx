@@ -7,7 +7,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate, useParams } from '@/compat/router'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
+import { brandsApi } from '../lib/api'
+import { UploadProvider } from '../contexts/UploadContext'
 import BrandCanvas from './BrandCanvas'
 import { Loader2 } from 'lucide-react'
 
@@ -95,13 +96,10 @@ export function BrandCanvasWrapper() {
             return
         }
         try {
-            const { data, error } = await supabase
-                .from('brands')
-                .select('id, name, logo_url, primary_color, published, draft, slug, account_id')
-                .eq('id', brandId)
-                .single()
+            const { data, error } = await brandsApi.get(brandId)
 
-            if (error) throw error
+            if (error) throw new Error(error.message)
+            if (!data) throw new Error('Brand not found')
 
             setBrandData({
                 brandId: data.id,
@@ -145,5 +143,13 @@ export function BrandCanvasWrapper() {
     }
 
     const isAdmin = brandData.accountId === currentAccount?.id && canEdit()
-    return <BrandCanvas isAdmin={isAdmin} brandData={brandData} />
+
+    // Blocks several levels down (ImageBlock, ImageGridBlock, AssetBlock) call
+    // useUpload(); R2 keys are tenant-prefixed, so they need the account and
+    // brand from here rather than a dozen new props.
+    return (
+        <UploadProvider accountId={brandData.accountId} brandId={brandData.brandId}>
+            <BrandCanvas isAdmin={isAdmin} brandData={brandData} />
+        </UploadProvider>
+    )
 }

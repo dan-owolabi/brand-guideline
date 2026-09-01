@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { brandsApi } from '../lib/api'
 import { getDefaultDraft } from '../data/defaultSections'
 
 /**
@@ -59,21 +59,13 @@ export function useBrandEditor(identifier) {
         const fetchDraft = async () => {
             setLoading(true)
             try {
-                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)
+                // The endpoint resolves id OR slug server-side (see
+                // requireBrandRole), so the UUID sniff that used to pick a
+                // column here is no longer needed.
+                const { data, error } = await brandsApi.get(identifier)
 
-                let query = supabase
-                    .from('brands')
-                    .select('id, draft, published, name, slug, logo_url, primary_color')
-
-                if (isUuid) {
-                    query = query.eq('id', identifier)
-                } else {
-                    query = query.eq('slug', identifier)
-                }
-
-                const { data, error } = await query.single()
-
-                if (error) throw error
+                if (error) throw new Error(error.message)
+                if (!data) throw new Error('Brand not found')
 
                 // Store brandId for saves
                 if (data?.id) {
@@ -159,10 +151,10 @@ export function useBrandEditor(identifier) {
         saveTimer.current = setTimeout(async () => {
             setSaving(true)
             try {
-                await supabase
-                    .from('brands')
-                    .update({ draft: newDraft })
-                    .eq('id', brandId)
+                // Dedicated endpoint: a single $set on `draft`, never a full
+                // document write. This fires ~1x/second while typing.
+                const { error } = await brandsApi.saveDraft(brandId, newDraft)
+                if (error) throw new Error(error.message)
             } catch (err) {
                 console.error('Failed to save draft:', err)
             } finally {
@@ -194,10 +186,8 @@ export function useBrandEditor(identifier) {
         if (updates.primaryColor !== undefined) dbUpdates.primary_color = updates.primaryColor
 
         try {
-            await supabase
-                .from('brands')
-                .update(dbUpdates)
-                .eq('id', brandId)
+            const { error } = await brandsApi.update(brandId, dbUpdates)
+            if (error) throw new Error(error.message)
         } catch (err) {
             console.error('Failed to update brand metadata:', err)
         }
@@ -368,21 +358,16 @@ export function useBrandEditor(identifier) {
 
         setSaving(true)
         try {
-            const updates = {
-                published: { ...draft, publishMode: options.mode || 'both' },
-            }
-            if (options.slug) {
-                updates.slug = options.slug
-            }
-
-            const { data, error } = await supabase
-                .from('brands')
-                .update(updates)
-                .eq('id', brandIdToUse)
-                .select()
+            // Publishing copies the STORED draft server-side rather than
+            // sending content up from the client — otherwise a caller could
+            // publish arbitrary content that was never the draft.
+            const { data, error } = await brandsApi.publish(brandIdToUse, {
+                publishMode: options.mode || 'both',
+                slug: options.slug,
+            })
 
             if (error) {
-                console.error('[Publish] Supabase error:', error)
+                console.error('[Publish] error:', error)
                 throw new Error(error.message || 'Failed to publish')
             }
 
@@ -408,10 +393,8 @@ export function useBrandEditor(identifier) {
         if (!draft || !brandId) return
         setSaving(true)
         try {
-            await supabase
-                .from('brands')
-                .update({ draft })
-                .eq('id', brandId)
+            const { error } = await brandsApi.saveDraft(brandId, draft)
+            if (error) throw new Error(error.message)
         } catch (err) {
             console.error('Failed to save draft:', err)
             throw err

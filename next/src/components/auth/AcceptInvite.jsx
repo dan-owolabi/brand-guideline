@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from '@/compat/router'
 import { useAuth } from '../../contexts/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { invitesApi } from '../../lib/api'
 import { Loader2, CheckCircle, XCircle, Users, ArrowRight } from 'lucide-react'
 
 export default function AcceptInvite() {
@@ -22,37 +22,27 @@ export default function AcceptInvite() {
     const [success, setSuccess] = useState(false)
 
     // Load invite details
+    /**
+     * The endpoint returns only { accountName, accountLogoUrl, role, expiresAt }
+     * and answers 404 for unknown, expired AND revoked tokens alike — any
+     * difference would let someone probe which tokens once existed. That is
+     * why the status/expiry branches this used to have are gone: the server
+     * no longer discloses enough to distinguish them, by design.
+     */
     const loadInvite = useCallback(async () => {
         try {
-            const { data, error: fetchError } = await supabase
-                .from('account_invites')
-                .select(`
-                    *,
-                    account:accounts (
-                        id,
-                        name,
-                        logo_url
-                    )
-                `)
-                .eq('token', token)
-                .single()
+            const { data, error: fetchError } = await invitesApi.getByToken(token)
 
             if (fetchError || !data) {
-                setError('This invite link is invalid or has already been used.')
+                setError('This invite link is invalid, has expired, or has already been used.')
                 return
             }
 
-            if (data.status !== 'pending') {
-                setError('This invite has already been accepted or has expired.')
-                return
-            }
-
-            if (new Date(data.expires_at) < new Date()) {
-                setError('This invite has expired. Please ask the team owner for a new invite.')
-                return
-            }
-
-            setInvite(data)
+            setInvite({
+                role: data.role,
+                expires_at: data.expiresAt,
+                account: { name: data.accountName, logo_url: data.accountLogoUrl },
+            })
         } catch (err) {
             console.error('Failed to load invite:', err)
             setError('Failed to load invite details.')
@@ -66,14 +56,13 @@ export default function AcceptInvite() {
 
         setAccepting(true)
         try {
-            const { data, error: rpcError } = await supabase.rpc('accept_invite', {
-                invite_token: token
-            })
+            // Replaces the accept_invite SECURITY DEFINER function. The route
+            // wraps both writes in a transaction and grants membership to the
+            // SESSION user — never to an id from the request body.
+            const { data, error: acceptError } = await invitesApi.accept(token)
 
-            if (rpcError) throw rpcError
-
-            if (data?.error) {
-                setError(data.error)
+            if (acceptError) {
+                setError(acceptError.message)
                 return
             }
 
@@ -82,7 +71,7 @@ export default function AcceptInvite() {
             // Refresh accounts and switch to the invited workspace, then redirect
             setTimeout(async () => {
                 await refreshAccounts()
-                if (data?.account_id) switchAccount(data.account_id)
+                if (data?.accountId) switchAccount(data.accountId)
                 navigate('/dashboard', { replace: true })
             }, 2000)
         } catch (err) {

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { ImagePlus, X, Plus, Grid2x2, Grid3x3, Square, RectangleHorizontal, RectangleVertical, Maximize2 } from 'lucide-react'
-import { uploadFile } from '../../lib/supabase'
+import { useUpload } from '../../contexts/UploadContext'
 import { ImagePresets } from '../../lib/imageOptimizer'
 
 const GRID_LAYOUTS = {
@@ -28,6 +28,7 @@ export default function ImageGridBlock({
     isAdmin = false,
     onUpdate
 }) {
+    const upload = useUpload()
     const [uploading, setUploading] = useState(false)
     const [replacingIndex, setReplacingIndex] = useState(null)
     const fileInputRef = useRef(null)
@@ -47,9 +48,10 @@ export default function ImageGridBlock({
         setUploading(true)
         try {
             const uploadPromises = filesToUpload.map(async (file) => {
-                // Try to upload to Supabase, fallback to blob URL
+                // Fall back to a local blob URL so the editor still shows
+                // the image if storage is unavailable.
                 try {
-                    const url = await uploadFile(file, 'media')
+                    const { url } = await upload(file)
                     return { src: url, alt: file.name }
                 } catch {
                     return { src: URL.createObjectURL(file), alt: file.name }
@@ -74,7 +76,7 @@ export default function ImageGridBlock({
         try {
             let url
             try {
-                url = await uploadFile(file, 'media')
+                ;({ url } = await upload(file))
             } catch {
                 url = URL.createObjectURL(file)
             }

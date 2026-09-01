@@ -4,7 +4,15 @@
       "Bash(tee /private/tmp/claude-501/-Users-danny-Documents-Building-brand-guideline/19968f7a-0789-4f3e-9c8a-72e28ac1d2ae/scratchpad/dev.log)",
       "Bash(git checkout *)",
       "Bash(npx vite *)",
-      "Bash(awk '{print $5, $9}')"
+      "Bash(awk '{print $5, $9}')",
+      "Bash(npm install *)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(sed -i '' \"s|from '../src/server/../lib/domains.js'|from '../src/lib/domains.js'|\" tests/domains.test.js)",
+      "Bash(node --test tests/domains.test.js)",
+      "Bash(npm test *)",
+      "Bash(pkill -f \"node --conditions=react-server\")",
+      "Bash(bash scripts/verify_public_leak.sh)",
+      "Bash(echo \"\\(exit $?\\)\")"
     ]
   }
 }

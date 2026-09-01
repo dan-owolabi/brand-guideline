@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useLocation, Link } from '@/compat/router'
 import { ArrowLeft, ExternalLink, Check, Loader2, Globe, Menu, PanelLeft, Upload } from 'lucide-react'
-import { uploadFile } from '../lib/supabase'
+import { useUpload } from '../contexts/UploadContext'
 import { getBrandUrl } from '../lib/domainResolver'
 
 // Helper to determine text color (black or white) based on background brightness
@@ -36,6 +36,7 @@ export default function Header({
     basePath,
     publishMode
 }) {
+    const upload = useUpload()
     const navigate = useNavigate()
     const location = useLocation()
     const fileInputRef = useRef(null)
@@ -80,7 +81,7 @@ export default function Header({
         if (!file) return
 
         try {
-            const url = await uploadFile(file, 'media')
+            const { url } = await upload(file)
             onUpdateBrand?.({ logoUrl: url })
         } catch (error) {
             console.error("Logo upload failed", error)

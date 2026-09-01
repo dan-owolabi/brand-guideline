@@ -10,7 +10,8 @@ import {
     LayoutGrid, List, Copy, Folder, ChevronRight, ArrowLeft, Home
 } from 'lucide-react'
 import FolderAssetCard from './FolderAssetCard'
-import { supabase, uploadFile, deleteFile } from '../../lib/supabase'
+import { useUpload, useDeleteFiles } from '../../contexts/UploadContext'
+import { brandsApi, collectionsApi, assetsApi, publicApi } from '../../lib/api'
 import Header from '../Header'
 import { useBrandEditor } from '../../hooks/useBrandEditor'
 import JSZip from 'jszip'
@@ -76,6 +77,8 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
     const { brandId, slug } = useParams()
     // Identifier is either UUID (brandId), Slug from params, or passed prop
     const identifier = brandSlug || slug || brandId
+    const upload = useUpload()
+    const removeFiles = useDeleteFiles()
 
     const [brand, setBrand] = useState(null)
     const [assets, setAssets] = useState([])
@@ -141,67 +144,66 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
     const fetchData = useCallback(async () => {
         setLoading(true)
         try {
-            // 1. Resolve Brand first (handle slug or ID)
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)
-            // Public (isAdmin=false) visitors read the column-scoped view; anon
-            // has no access to the base table. Admins need the base table for
-            // unpublished brands and for the banner_url update below.
-            let brandQuery = supabase
-                .from(isAdmin ? 'brands' : 'public_brands')
-                .select('id, name, logo_url, primary_color, banner_url, published')
+            // Both paths accept an id OR a slug; resolution happens
+            // server-side (requireBrandRole / the public repo), so the UUID
+            // sniff that used to pick a column here is gone.
+            let brandData, rawSections, rawAssets
 
-            if (isUuid) {
-                brandQuery = brandQuery.eq('id', identifier)
+            if (isAdmin) {
+                const [b, c, a] = await Promise.all([
+                    brandsApi.get(identifier),
+                    collectionsApi.listByBrand(identifier),
+                    assetsApi.listByBrand(identifier),
+                ])
+                if (b.error) throw new Error(b.error.message)
+                brandData = b.data
+                rawSections = c.data || []
+                rawAssets = a.data || []
             } else {
-                brandQuery = brandQuery.eq('slug', identifier)
+                // Anonymous visitors get brand + collections + assets from a
+                // single unauthenticated endpoint whose projection is fixed —
+                // no `draft`, and only brands that are themselves published.
+                const { data, error } = await publicApi.getBrand(identifier, { view: 'assets' })
+                if (error) throw new Error(error.message)
+                brandData = data.brand
+                rawSections = data.collections
+                rawAssets = data.assets
             }
 
-            const { data: brandData, error: brandError } = await brandQuery.single()
-            if (brandError) throw brandError
+            if (!brandData) throw new Error('Brand not found')
 
             setBrand({ ...brandData, publishMode: brandData.published?.publishMode || 'both' })
             const resolvedId = brandData.id
-
-            // 2. Fetch Assets and Sections using resolved UUID
-            const [sectionsResult, assetsResult] = await Promise.all([
-                supabase.from('collections').select('*').eq('brand_id', resolvedId).order('order', { ascending: true }),
-                supabase.from('assets').select('*').eq('brand_id', resolvedId).order('created_at', { ascending: false })
-            ])
-
-            const rawSections = sectionsResult.data || []
-            const rawAssets = assetsResult.data || []
 
             // Auto-migrate any uncategorized assets to a real "Other Files" section
             const uncategorizedAssets = rawAssets.filter(a => !a.collection_id)
             if (uncategorizedAssets.length > 0) {
                 // Check if an "Other Files" section exists, else create one
                 let otherFilesSection = rawSections.find(s => s.name === 'Other Files')
-                if (!otherFilesSection) {
-                    const newSection = {
-                        id: crypto.randomUUID(),
-                        brand_id: resolvedId,
-                        name: 'Other Files',
-                        order: rawSections.length
+
+                // Only an editor may write. Previously this fired on EVERY
+                // load including anonymous ones, where it silently failed.
+                if (isAdmin) {
+                    if (!otherFilesSection) {
+                        const { data: created } = await collectionsApi.create(resolvedId, {
+                            name: 'Other Files',
+                            order: rawSections.length,
+                        })
+                        if (created) {
+                            otherFilesSection = created
+                            rawSections.push(otherFilesSection)
+                        }
                     }
-                    // Insert to DB silently
-                    supabase.from('collections').insert(newSection).then(({ error }) => {
-                        if (error) console.error('Failed to create Other Files section', error)
-                    })
-                    otherFilesSection = newSection
-                    rawSections.push(otherFilesSection)
+
+                    if (otherFilesSection) {
+                        const assetIds = uncategorizedAssets.map(a => a.id)
+                        assetsApi.bulkMove(resolvedId, assetIds, { collectionId: otherFilesSection.id })
+                            .then(({ error }) => {
+                                if (error) console.error('Failed to migrate uncategorized assets', error)
+                            })
+                        uncategorizedAssets.forEach(a => { a.collection_id = otherFilesSection.id })
+                    }
                 }
-
-                // Update assets to belong to this section in DB silently
-                const assetIds = uncategorizedAssets.map(a => a.id)
-                supabase.from('assets')
-                    .update({ collection_id: otherFilesSection.id })
-                    .in('id', assetIds)
-                    .then(({ error }) => {
-                        if (error) console.error('Failed to migrate uncategorized assets', error)
-                    })
-
-                // Update local state
-                uncategorizedAssets.forEach(a => a.collection_id = otherFilesSection.id)
             }
 
             setSections(rawSections)
@@ -253,8 +255,8 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         const file = e.target.files?.[0]
         if (!file) return
         try {
-            const url = await uploadFile(file, 'media')
-            await supabase.from('brands').update({ banner_url: url }).eq('id', brand.id)
+            const { url } = await upload(file)
+            await brandsApi.update(brand.id, { banner_url: url })
             setBrand(prev => ({ ...prev, banner_url: url }))
         } catch (err) {
             console.error('Banner upload failed:', err)
@@ -272,10 +274,8 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             // Optimistic update
             setSections(newSections)
 
-            // Persist order to database
-            for (let i = 0; i < newSections.length; i++) {
-                await supabase.from('collections').update({ order: i }).eq('id', newSections[i].id)
-            }
+            // One bulkWrite instead of one request per section.
+            await collectionsApi.reorder(brand.id, newSections.map(s => s.id))
         }
     }
 
@@ -294,13 +294,17 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             setNewSectionName('')
             setIsAddingSection(false)
 
-            // Persist to database
-            const { error } = await supabase.from('collections').insert(newSection)
+            // The server assigns the id, so swap the optimistic row for the
+            // real one rather than keeping a client-invented id around.
+            const { data: created, error } = await collectionsApi.create(brand.id, {
+                name: newSection.name,
+                order: newSection.order,
+            })
             if (error) {
-                // Rollback on error
                 setSections(prev => prev.filter(s => s.id !== newSection.id))
-                throw error
+                throw new Error(error.message)
             }
+            setSections(prev => prev.map(s => (s.id === newSection.id ? created : s)))
         } catch (err) {
             console.error('Failed to create section:', err)
         }
@@ -320,13 +324,19 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         // Optimistic update
         setSections(prev => [...prev, newSection])
 
-        // Persist to database
-        const { error } = await supabase.from('collections').insert(newSection)
+        const { data: createdSection, error } = await collectionsApi.create(brand.id, {
+            name: newSection.name,
+            order: newSection.order,
+        })
         if (error) {
             setSections(prev => prev.filter(s => s.id !== newSection.id))
             console.error('Failed to copy section:', error)
             return
         }
+        // Re-point the optimistic row AND the assets copied into it below at
+        // the server-assigned id.
+        setSections(prev => prev.map(s => (s.id === newSection.id ? createdSection : s)))
+        newSection.id = createdSection.id
 
         // Copy assets from original section to new section
         // Copy assets from original section to new section with hierarchy preservation
@@ -359,8 +369,10 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
 
         setAssets(prev => [...prev, ...newAssets])
 
-        // Batch insert for performance
-        const { error: copyError } = await supabase.from('assets').insert(newAssets)
+        // Client-generated ids are sent deliberately here: idMap above encodes
+        // the parent/child hierarchy of the copied folders, and server-assigned
+        // ids would break those references.
+        const { error: copyError } = await assetsApi.create(brand.id, newAssets)
         if (copyError) {
             console.error('Failed to copy assets:', copyError)
             // simplified rollback (could be better)
@@ -382,9 +394,9 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                 ))
                 setSections(prev => prev.filter(s => s.id !== sectionId))
 
-                // Persist to database
-                await supabase.from('assets').update({ collection_id: null }).eq('collection_id', sectionId)
-                await supabase.from('collections').delete().eq('id', sectionId)
+                // The server reparents the section's assets to uncategorised
+                // as part of the delete, so no separate update is needed.
+                await collectionsApi.remove(sectionId, brand.account_id)
             }
         })
     }
@@ -461,7 +473,9 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
             console.log('[Upload Debug] Created folder:', { name: folderName, id: newId, parentId, path })
 
             // Persist (await to ensure folder exists before children are inserted)
-            const { error } = await supabase.from('assets').insert(newFolder)
+            // Client id is sent on purpose: files uploaded in the same pass
+            // reference this folder as parent_id before any response arrives.
+            const { data: created, error } = await assetsApi.create(brand.id, newFolder)
             if (error) {
                 console.error('[Upload Debug] Folder insert error:', error)
                 // Remove optimistic folder since it failed
@@ -511,24 +525,25 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                     brand_id: brand.id
                 }])
 
-                uploadFile(file, 'media').then(async (url) => {
+                upload(file, { brandId: brand.id }).then(async ({ url, key }) => {
                     const isImage = file.type.startsWith('image/')
                     const { category } = getFileCategory(file.name)
 
-                    const { data: newAsset, error } = await supabase.from('assets').insert({
-                        brand_id: brand.id,
+                    const { data: created, error } = await assetsApi.create(brand.id, {
                         name: file.name,
                         file_url: url,
+                        file_key: key,
                         thumbnail_url: isImage ? url : null,
                         file_type: file.type,
                         file_size: file.size,
                         category,
                         collection_id: effectiveSectionId,
-                        parent_id: parentId
-                    }).select().single()
+                        parent_id: parentId,
+                    })
 
-                    if (error) throw error
+                    if (error) throw new Error(error.message)
 
+                    const newAsset = created?.[0]
                     if (newAsset) {
                         setAssets(prev => prev.map(a => a.id === tempId ? newAsset : a))
                     }
@@ -580,22 +595,24 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                 const idsToDelete = new Set(assetsToDelete.map(a => a.id))
                 setAssets(prev => prev.filter(a => !idsToDelete.has(a.id)))
 
-                // Delete physical files from storage
-                const fileAssets = assetsToDelete.filter(a => !a.is_folder && a.file_url)
-                for (const fileAsset of fileAssets) {
-                    try {
-                        await deleteFile(fileAsset.file_url, 'media')
-                    } catch (_e) {
-                        console.log(`Could not delete file ${fileAsset.name} from storage`)
-                    }
-                }
-
-                // Delete records from database
+                // Delete the records first; the response carries the R2 keys
+                // of the rows that were ACTUALLY deleted under this account, so
+                // a forged id list can never yield another tenant's keys.
                 try {
-                    // Supabase will delete children if ON DELETE CASCADE is set up correctly, 
-                    // but just in case, we send an IN query for all the IDs we found.
                     const idsArray = Array.from(idsToDelete)
-                    await supabase.from('assets').delete().in('id', idsArray)
+                    const { data } = await assetsApi.bulkDelete(brand.id, idsArray)
+
+                    const keys = (data?.fileKeys ?? []).filter(Boolean)
+                    if (keys.length) {
+                        try {
+                            await removeFiles(keys)
+                        } catch (storageErr) {
+                            // Orphaned objects are recoverable (and cheap on
+                            // R2); a failed record delete is not. Never let
+                            // storage cleanup fail the operation.
+                            console.warn('Some files could not be removed from storage:', storageErr.message)
+                        }
+                    }
                 } catch (err) {
                     console.error('Failed to delete asset records:', err)
                     // If deletion failed, we ideally should revert the optimistic UI update
@@ -715,7 +732,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         ))
 
         // Persist to database
-        await supabase.from('assets').update({ collection_id: newSectionId }).in('id', allIdsToUpdate)
+        await assetsApi.bulkMove(brand.id, allIdsToUpdate, { collectionId: newSectionId })
     }
 
     const handleAddTextBlock = async (sectionId, variant = 'heading') => {
@@ -738,20 +755,19 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
 
         try {
             // Save to database
-            const { data: newAsset, error } = await supabase.from('assets').insert({
-                brand_id: brand.id,
+            const { data: created, error } = await assetsApi.create(brand.id, {
                 name: defaultText,
-                description: defaultText,
                 category: 'text',
                 file_type: `text/${variant}`,
                 file_url: 'text-block',
-                collection_id: sectionId
-            }).select().single()
+                collection_id: sectionId,
+            })
 
-            if (error) throw error
+            if (error) throw new Error(error.message)
 
             // Replace temp with real asset
-            setAssets(prev => prev.map(a => a.id === tempId ? newAsset : a))
+            const newAsset = created?.[0]
+            if (newAsset) setAssets(prev => prev.map(a => a.id === tempId ? newAsset : a))
         } catch (err) {
             console.error('Failed to add text block:', err)
             // Remove failed block
@@ -766,7 +782,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
         ))
 
         // Persist
-        await supabase.from('assets').update({ name: newText, description: newText }).eq('id', assetId)
+        await assetsApi.rename(assetId, brand.account_id, newText)
     }
 
     // Create new empty folders (supports multiple names separated by comma or newline)
@@ -807,18 +823,18 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                     setAssets(prev => [...prev, newFolder])
 
                     try {
-                        const { data, error } = await supabase.from('assets').insert({
-                            brand_id: brand.id,
+                        const { data: created, error } = await assetsApi.create(brand.id, {
                             name: folderName,
                             is_folder: true,
                             parent_id: parentId,
-                            collection_id: effectiveSectionId
-                        }).select().single()
+                            collection_id: effectiveSectionId,
+                        })
 
-                        if (error) throw error
+                        if (error) throw new Error(error.message)
 
                         // Replace temp with real
-                        setAssets(prev => prev.map(a => a.id === tempId ? data : a))
+                        const data = created?.[0]
+                        if (data) setAssets(prev => prev.map(a => a.id === tempId ? data : a))
                     } catch (err) {
                         console.error('Failed to create folder:', err)
                         setAssets(prev => prev.filter(a => a.id !== tempId))
@@ -1327,7 +1343,7 @@ export default function AssetsPage({ isAdmin = true, brandSlug = null, basePath 
                                                                                 setSections(prev => prev.map(s =>
                                                                                     s.id === section.id ? { ...s, name: editingSectionName.trim() } : s
                                                                                 ))
-                                                                                await supabase.from('collections').update({ name: editingSectionName.trim() }).eq('id', section.id)
+                                                                                await collectionsApi.rename(section.id, brand.account_id, editingSectionName.trim())
                                                                             }
                                                                             setEditingSectionId(null)
                                                                         }}

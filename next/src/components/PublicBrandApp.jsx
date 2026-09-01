@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate } from '@/compat/router'
-import { supabase } from '../lib/supabase'
+import { publicApi } from '../lib/api'
 import BrandCanvas from './BrandCanvas'
 import AssetsPage from './admin/AssetsPage'
 import { Loader2 } from 'lucide-react'
@@ -20,36 +20,18 @@ export default function PublicBrandApp({ brandIdentifier, isCustomDomain = false
 
     const loadBrand = useCallback(async () => {
         try {
-            // Read through the column-scoped public views, never the base
-            // tables. The views expose an explicit allowlist, so `draft` is
-            // not reachable even via ?select=. See migration 010.
-            let query = supabase
-                .from('public_brands')
-                .select('id, name, slug, logo_url, primary_color, published, account_id')
+            // One unauthenticated endpoint handles both the slug and custom
+            // domain paths, replacing the two chained anonymous queries. The
+            // server projects a fixed allowlist, so `draft` is unreachable —
+            // there is no column parameter to widen.
+            const { data, error } = await publicApi.getBrand(brandIdentifier, { isCustomDomain })
 
-            if (isCustomDomain) {
-                // Custom domain: find the account that owns this domain, then get its brand
-                const { data: acct } = await supabase
-                    .from('public_accounts')
-                    .select('id')
-                    .eq('custom_domain', brandIdentifier)
-                    .maybeSingle()
+            if (error || !data?.brand) throw new Error(error?.message || 'Brand not found')
 
-                if (!acct) {
-                    throw new Error('No account found for custom domain')
-                }
-                query = query.eq('account_id', acct.id).limit(1)
-            } else {
-                // Slug-based lookup — find brand directly, no accounts join required
-                query = query.eq('slug', brandIdentifier)
-            }
+            const brandData = data.brand
 
-            const { data: brandData, error } = await query.maybeSingle()
-
-            if (error) throw error
-            if (!brandData) throw new Error('Brand not found')
-
-            // Brand must have published content
+            // The brand resolves even when unpublished (published === null) so
+            // this can show "not published yet" instead of a 404.
             if (!brandData.published) {
                 setError('not_published')
                 return

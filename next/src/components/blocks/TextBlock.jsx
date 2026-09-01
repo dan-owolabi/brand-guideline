@@ -192,7 +192,7 @@ export default function TextBlock({
         const range = selection.getRangeAt(0)
         range.deleteContents()
 
-        let html = ''
+        let html
 
         if (isBulletList) {
             // Create unordered list

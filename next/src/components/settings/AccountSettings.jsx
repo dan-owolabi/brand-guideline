@@ -8,7 +8,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from '@/compat/router'
 import { useAuth } from '../../contexts/AuthContext'
-import { supabase, sendInviteEmail } from '../../lib/supabase'
+import { authClient } from '../../lib/auth/client'
+import { accountsApi, invitesApi } from '../../lib/api'
 import { getBrandUrl } from '../../lib/domainResolver'
 import {
     Settings, Users, Globe, ArrowLeft,
@@ -327,8 +328,8 @@ function GeneralSettings() {
     const handleSaveName = async () => {
         setSaving(true)
         try {
-            const { error } = await supabase.auth.updateUser({ data: { full_name: displayName } })
-            if (error) throw error
+            const { error } = await authClient.updateUser({ fullName: displayName, name: displayName })
+            if (error) throw new Error(error.message)
             setSaved(true)
             setTimeout(() => setSaved(false), 2000)
         } catch (err) {
@@ -342,10 +343,11 @@ function GeneralSettings() {
         setChangingPassword(true)
         setPwError('')
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(user?.email, {
-                redirectTo: `${window.location.origin}/reset-password`
+            const { error } = await authClient.forgetPassword({
+                email: user?.email,
+                redirectTo: `${window.location.origin}/reset-password`,
             })
-            if (error) throw error
+            if (error) throw new Error(error.message)
             setPwSent(true)
         } catch (err) {
             setPwError(err.message)
@@ -437,21 +439,23 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
     const loadMembers = useCallback(async () => {
         setLoadingMembers(true)
         try {
-            const { data: membersRaw, error } = await supabase
-                .from('account_members')
-                .select('id, role, created_at, user_id')
-                .eq('account_id', workspace.id)
-            if (!error && membersRaw?.length) {
-                const { data: usersData } = await supabase
-                    .from('users').select('id, email, avatar_url')
-                    .in('id', membersRaw.map(m => m.user_id))
-                setMembers(membersRaw.map(m => ({
-                    ...m,
-                    user: usersData?.find(u => u.id === m.user_id) || { id: m.user_id, email: null }
-                })))
-            } else if (!error) {
-                setMembers([])
-            }
+            // One request now: membership is embedded on the account and the
+            // server resolves each userId against Better Auth's user
+            // collection. The old code needed a SECOND query to `users`
+            // because PostgREST had no FK to embed through.
+            const { data, error } = await accountsApi.members(workspace.id)
+            if (error) throw new Error(error.message)
+
+            // Reshaped to the { id, user: {...} } form the table below renders.
+            // There is no membership row id any more — members live in an array
+            // on the account — so userId identifies the row.
+            setMembers((data ?? []).map(m => ({
+                id: m.userId,
+                user_id: m.userId,
+                role: m.role,
+                created_at: m.addedAt,
+                user: { id: m.userId, email: m.email, avatar_url: m.avatarUrl, name: m.name },
+            })))
         } catch (e) {
             console.error(e)
         } finally {
@@ -461,12 +465,7 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
 
     const loadInvites = useCallback(async () => {
         try {
-            const { data } = await supabase
-                .from('account_invites')
-                .select('*')
-                .eq('account_id', workspace.id)
-                .eq('status', 'pending')
-                .order('created_at', { ascending: false })
+            const { data } = await accountsApi.invites(workspace.id)
             setPendingInvites(data || [])
         } catch (e) {
             console.error(e)
@@ -484,26 +483,26 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
         setInviting(true)
         setInviteError('')
         try {
-            const { data: inviteRow, error } = await supabase
-                .from('account_invites')
-                .insert({
-                    account_id: workspace.id,
-                    email: inviteEmail.trim().toLowerCase(),
-                    role: inviteRole,
-                    invited_by: user.id
-                })
-                .select()
-                .single()
+            const { data: inviteRow, error } = await accountsApi.createInvite(workspace.id, {
+                email: inviteEmail.trim().toLowerCase(),
+                role: inviteRole,
+            })
             if (error) {
-                setInviteError(error.code === '23505' ? 'Already invited.' : error.message)
+                // Mongo E11000 -> 'duplicate'; replaces the Postgres 23505 check.
+                setInviteError(
+                    error.code === 'duplicate' ? 'Already invited.'
+                    : error.code === 'already_member' ? 'They are already a member.'
+                    : error.message
+                )
                 return
             }
-            // Send invite email via Supabase Auth REST API
+            // NOTE: the previous sendInviteEmail() call was dead code — it hit
+            // GoTrue /invite with the ANON key, which requires service_role, so
+            // it always 401'd and the error was swallowed. Invites have only
+            // ever worked via the copy-link below. Real delivery (SES) is
+            // pending; see the TODO in the invites route.
             if (inviteRow?.token) {
-                await sendInviteEmail(
-                    inviteEmail.trim().toLowerCase(),
-                    `${window.location.origin}/invite/${inviteRow.token}`
-                )
+                copyInviteLink(inviteRow.token)
             }
             setInviteEmail('')
             setShowInviteForm(false)
@@ -517,12 +516,15 @@ function WorkspaceTeamPanel({ workspace, currentUserId }) {
 
     const handleRemoveMember = async (memberId) => {
         if (!confirm('Remove this team member?')) return
-        await supabase.from('account_members').delete().eq('id', memberId)
+        // memberId is the userId — membership is an embedded array, not a table.
+        const { error } = await accountsApi.removeMember(workspace.id, memberId)
+        if (error) { alert(error.message); return }
         loadMembers()
     }
 
     const handleRevokeInvite = async (inviteId) => {
-        await supabase.from('account_invites').delete().eq('id', inviteId)
+        const { error } = await invitesApi.revoke(workspace.id, inviteId)
+        if (error) { alert(error.message); return }
         loadInvites()
     }
 
@@ -686,12 +688,11 @@ function DomainSettings({ account, onUpdate }) {
     const handleSave = async () => {
         setSaving(true)
         try {
-            const { error } = await supabase
-                .from('accounts')
-                .update({ custom_domain: customDomain || null })
-                .eq('id', account.id)
+            const { error } = await accountsApi.update(account.id, {
+                custom_domain: customDomain || null,
+            })
 
-            if (error) throw error
+            if (error) throw new Error(error.message)
             onUpdate?.()
         } catch (err) {
             console.error('Failed to save:', err)

@@ -6,7 +6,7 @@ import {
     FileText, FileImage, FileArchive, Palette, Type as FontIcon,
     Paperclip, ArrowUpDown, Plus, X, Upload, Loader2, Trash2, GripVertical
 } from 'lucide-react'
-import { uploadFile } from '../../lib/supabase'
+import { useUpload } from '../../contexts/UploadContext'
 import { saveAs } from 'file-saver'
 
 async function downloadFile(url, filename) {
@@ -243,6 +243,7 @@ function UploadZone({ onUpload, isUploading }) {
 }
 
 export default function AssetBlock({ content, isAdmin = false, onUpdate, brand }) {
+    const upload = useUpload()
     const [viewMode, setViewMode] = useState('grid')
     const [searchQuery, setSearchQuery] = useState('')
     const [filterType, setFilterType] = useState('all')
@@ -280,7 +281,7 @@ export default function AssetBlock({ content, isAdmin = false, onUpdate, brand }
         try {
             const newAssets = []
             for (const file of files) {
-                const url = await uploadFile(file, 'assets')
+                const { url } = await upload(file)
                 const isImage = file.type.startsWith('image/')
 
                 newAssets.push({

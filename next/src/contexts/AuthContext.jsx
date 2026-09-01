@@ -1,31 +1,36 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useRef } from 'react'
-import { supabase } from '../lib/supabase'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { authClient } from '../lib/auth/client'
+import { accountsApi } from '../lib/api'
 import { getAuthCallbackUrl } from '../lib/domainResolver'
 
-const AuthContext = createContext(null)
-const AUTH_TIMEOUT_MS = 20000
+/**
+ * Auth + account context.
+ *
+ * The PUBLIC SURFACE of this provider is deliberately unchanged from the
+ * Supabase version — same state keys, same method names, same `{ data, error }`
+ * returns — so gates.jsx and every consumer compile untouched. Only the
+ * internals moved to Better Auth.
+ *
+ * Two things from the old implementation are gone on purpose:
+ *
+ *  - onAuthStateChange, and with it the `setTimeout(..., 0)` workaround whose
+ *    comment explained that calling another supabase method synchronously
+ *    inside the callback holds the client lock and can deadlock. Better Auth's
+ *    useSession is a plain reactive hook with no such lock, so the workaround
+ *    deletes itself rather than being ported.
+ *
+ *  - the 20s withTimeout wrapper around getSession. Session resolution is now
+ *    a same-origin request to our own /api/auth, not a cross-region call that
+ *    could hang indefinitely; fetch failures surface as errors already.
+ */
 
-function withTimeout(promise, ms, message) {
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(message)), ms)
-        promise
-            .then((value) => {
-                clearTimeout(timer)
-                resolve(value)
-            })
-            .catch((err) => {
-                clearTimeout(timer)
-                reject(err)
-            })
-    })
-}
+const AuthContext = createContext(null)
 
 function getAuthRedirectUrl() {
     const explicitRedirect = process.env.NEXT_PUBLIC_AUTH_REDIRECT_URL
     if (explicitRedirect) return explicitRedirect
-
     return getAuthCallbackUrl()
 }
 
@@ -38,307 +43,162 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null)
-    const [session, setSession] = useState(null)
+    const { data: sessionData, isPending } = authClient.useSession()
+
     const [accounts, setAccounts] = useState([])
     const [currentAccount, setCurrentAccount] = useState(null)
-    const [loading, setLoading] = useState(true)
-    const [initialized, setInitialized] = useState(false)
     const [accountsLoaded, setAccountsLoaded] = useState(false)
 
-    // Track which user id we've already loaded accounts for, so init +
-    // the INITIAL_SESSION event (and token refreshes) don't double-fetch.
+    const user = sessionData?.user ?? null
+    const session = sessionData?.session ?? null
+    const userId = user?.id ?? null
+
+    // Guards against re-fetching accounts for a user we already loaded (the
+    // session hook re-renders on refresh/refocus).
     const loadedUserRef = useRef(null)
 
-    // Initialize auth state
-    useEffect(() => {
-        let isActive = true
+    const fetchUserAccounts = useCallback(async (uid, { force = false } = {}) => {
+        if (!uid) return
+        if (!force && loadedUserRef.current === uid) return
+        loadedUserRef.current = uid
 
-        const syncAuth = (session) => {
-            if (!isActive) return
-            setSession(session)
-            setUser(session?.user ?? null)
+        const { data, error } = await accountsApi.list()
 
-            const uid = session?.user?.id ?? null
-            if (uid) {
-                if (loadedUserRef.current === uid) return // already loaded for this user
-                loadedUserRef.current = uid
-                // Defer: calling other supabase methods synchronously inside the
-                // onAuthStateChange callback holds the client lock and can deadlock.
-                setTimeout(() => { if (isActive) fetchUserAccounts(uid) }, 0)
-            } else {
-                loadedUserRef.current = null
-                setAccounts([])
-                setCurrentAccount(null)
-                setAccountsLoaded(true)
-                setLoading(false)
-            }
-        }
-
-        // Prime with the current session; the listener handles all changes after.
-        withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS, 'Timed out loading session')
-            .then(({ data, error }) => {
-                if (error) throw error
-                syncAuth(data?.session ?? null)
-            })
-            .catch((err) => {
-                console.error('Failed to load auth session:', err)
-                if (!isActive) return
-                setSession(null)
-                setUser(null)
-                setAccounts([])
-                setCurrentAccount(null)
-                setAccountsLoaded(true)
-                setLoading(false)
-            })
-            .finally(() => { if (isActive) setInitialized(true) })
-
-        // Listen for auth changes (sign in/out, token refresh)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => syncAuth(session)
-        )
-
-        return () => {
-            isActive = false
-            subscription.unsubscribe()
-        }
-    }, [])
-
-    // Fetch user's accounts
-    const fetchUserAccounts = async (userId) => {
-        try {
-            const { data, error } = await withTimeout(
-                supabase
-                    .from('account_members')
-                    .select(`
-                        role,
-                        account:accounts (
-                            id,
-                            name,
-                            slug,
-                            logo_url,
-                            is_published,
-                            custom_domain
-                        )
-                    `)
-                    .eq('user_id', userId),
-                AUTH_TIMEOUT_MS,
-                'Timed out loading accounts'
-            )
-
-            if (error) {
-                console.error('Failed to fetch accounts:', error)
-                // Don't wipe existing accounts on a transient error — only mark as loaded
-                setAccountsLoaded(true)
-                setLoading(false)
-                return
-            }
-
-            const userAccounts = (data || [])
-                .filter(m => m.account)
-                .map(m => ({ ...m.account, role: m.role }))
-
-            // No accounts found — auto-create a default one so the user
-            // is never stuck on the onboarding screen unnecessarily.
-            // Skip auto-create if the user is in the middle of accepting an invite.
-            const onInvitePage = window.location.pathname.startsWith('/invite/')
-            if (userAccounts.length === 0 && !onInvitePage) {
-                try {
-                    const { data: userData } = await supabase.auth.getUser()
-                    const email = userData?.user?.email || 'user@example.com'
-                    const namePart = email.split('@')[0]
-                    const slug = namePart.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)
-                        + '-' + userId.slice(0, 8)
-
-                    const { data: newAccount, error: acctErr } = await supabase
-                        .from('accounts')
-                        .insert({ name: namePart, slug })
-                        .select()
-                        .single()
-
-                    if (!acctErr && newAccount) {
-                        await supabase
-                            .from('account_members')
-                            .insert({ account_id: newAccount.id, user_id: userId, role: 'owner' })
-
-                        const enriched = { ...newAccount, role: 'owner' }
-                        setAccounts([enriched])
-                        setCurrentAccount(enriched)
-                        localStorage.setItem('currentAccountId', enriched.id)
-                        return
-                    }
-
-                    // Insert failed (e.g. slug conflict from a concurrent call) —
-                    // retry the fetch so we pick up whatever was just created.
-                    const { data: retryData } = await supabase
-                        .from('account_members')
-                        .select(`role, account:accounts (id, name, slug, logo_url, is_published, custom_domain)`)
-                        .eq('user_id', userId)
-                    const retryAccounts = (retryData || [])
-                        .filter(m => m.account)
-                        .map(m => ({ ...m.account, role: m.role }))
-                    if (retryAccounts.length > 0) {
-                        setAccounts(retryAccounts)
-                        const savedId = localStorage.getItem('currentAccountId')
-                        setCurrentAccount(retryAccounts.find(a => a.id === savedId) || retryAccounts[0])
-                        return
-                    }
-                } catch (autoErr) {
-                    console.error('Auto-create account failed:', autoErr)
-                }
-            }
-
-            setAccounts(userAccounts)
-
-            // Restore last selected account from localStorage
-            const savedAccountId = localStorage.getItem('currentAccountId')
-            const savedAccount = userAccounts.find(a => a.id === savedAccountId)
-            setCurrentAccount(savedAccount || userAccounts[0] || null)
-        } catch (err) {
-            console.error('Failed to fetch accounts:', err)
-            // Do NOT clear existing accounts on a transient error — only mark as loaded
-        } finally {
+        if (error) {
+            console.error('Failed to fetch accounts:', error.message)
+            // Deliberately does NOT clear existing accounts — a transient
+            // failure should not log the user out of their workspace.
             setAccountsLoaded(true)
-            setLoading(false)
+            return
         }
-    }
 
-    // Switch to a different account
+        let userAccounts = data ?? []
+
+        /**
+         * Auto-create a first workspace so a new user is never stranded on an
+         * empty dashboard. Skipped on the invite page, where the user is about
+         * to join someone else's account and a stray personal one would be
+         * confusing.
+         */
+        const onInvitePage =
+            typeof window !== 'undefined' && window.location.pathname.startsWith('/invite/')
+
+        if (userAccounts.length === 0 && !onInvitePage) {
+            const email = user?.email || 'user@example.com'
+            const namePart = email.split('@')[0]
+            const slug =
+                namePart.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) + '-' + uid.slice(0, 8)
+
+            const { data: created, error: createErr } = await accountsApi.create({
+                name: namePart,
+                slug,
+            })
+
+            if (created) {
+                userAccounts = [created]
+            } else if (createErr?.code === 'duplicate') {
+                // A concurrent tab already created it — re-read rather than
+                // surfacing an error the user cannot act on.
+                const retry = await accountsApi.list()
+                userAccounts = retry.data ?? []
+            } else if (createErr) {
+                console.error('Auto-create account failed:', createErr.message)
+            }
+        }
+
+        setAccounts(userAccounts)
+
+        const savedId = safeGetItem('currentAccountId')
+        setCurrentAccount(userAccounts.find((a) => a.id === savedId) || userAccounts[0] || null)
+        setAccountsLoaded(true)
+    }, [user?.email])
+
+    useEffect(() => {
+        if (isPending) return
+
+        if (!userId) {
+            loadedUserRef.current = null
+            setAccounts([])
+            setCurrentAccount(null)
+            setAccountsLoaded(true)
+            return
+        }
+
+        fetchUserAccounts(userId)
+    }, [isPending, userId, fetchUserAccounts])
+
     const switchAccount = (accountId) => {
-        const account = accounts.find(a => a.id === accountId)
+        const account = accounts.find((a) => a.id === accountId)
         if (account) {
             setCurrentAccount(account)
-            localStorage.setItem('currentAccountId', accountId)
+            safeSetItem('currentAccountId', accountId)
         }
     }
 
-    // Sign up with email/password
+    /* ── auth methods (shape-compatible with the supabase versions) ───── */
+
     const signUp = async (email, password, fullName) => {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await authClient.signUp.email({
             email,
             password,
-            options: {
-                emailRedirectTo: getAuthRedirectUrl(),
-                data: {
-                    full_name: fullName
-                }
-            }
+            name: fullName || email.split('@')[0],
+            fullName,
+            callbackURL: getAuthRedirectUrl(),
         })
         return { data, error }
     }
 
-    // Sign in with email/password
     const signIn = async (email, password) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        })
+        const { data, error } = await authClient.signIn.email({ email, password })
         return { data, error }
     }
 
-    // Sign in with OAuth (Google, GitHub, etc.)
     const signInWithOAuth = async (provider) => {
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        const { data, error } = await authClient.signIn.social({
             provider,
-            options: {
-                redirectTo: getAuthRedirectUrl()
-            }
+            callbackURL: getAuthRedirectUrl(),
         })
         return { data, error }
     }
 
-    // Sign out
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut()
+        const { error } = await authClient.signOut()
         if (!error) {
-            localStorage.removeItem('currentAccountId')
+            safeRemoveItem('currentAccountId')
+            loadedUserRef.current = null
+            setAccounts([])
+            setCurrentAccount(null)
         }
         return { error }
     }
 
-    // Update an account's name/slug
-    const updateAccount = async (accountId, { name, slug }) => {
-        try {
-            const { data, error } = await supabase
-                .from('accounts')
-                .update({ name, slug })
-                .eq('id', accountId)
-                .select()
-                .single()
+    /* ── account methods ──────────────────────────────────────────────── */
 
-            if (error) throw error
-
-            // Refresh accounts list
-            await fetchUserAccounts(user.id)
-
-            return { data, error: null }
-        } catch (err) {
-            return { data: null, error: err }
-        }
-    }
-
-    // Delete an account (owner only)
-    const deleteAccount = async (accountId) => {
-        try {
-            const { error } = await supabase
-                .from('accounts')
-                .delete()
-                .eq('id', accountId)
-
-            if (error) throw error
-
-            // If we deleted the current account, switch to another
-            if (currentAccount?.id === accountId) {
-                const remaining = accounts.filter(a => a.id !== accountId)
-                setCurrentAccount(remaining[0] || null)
-                if (remaining[0]) {
-                    localStorage.setItem('currentAccountId', remaining[0].id)
-                } else {
-                    localStorage.removeItem('currentAccountId')
-                }
-            }
-
-            await fetchUserAccounts(user.id)
-
-            return { error: null }
-        } catch (err) {
-            return { error: err }
-        }
-    }
-
-    // Create a new account (for new users or adding accounts)
     const createAccount = async (name, slug) => {
-        try {
-            // Create account
-            const { data: account, error: accountError } = await supabase
-                .from('accounts')
-                .insert({ name, slug })
-                .select()
-                .single()
-
-            if (accountError) throw accountError
-
-            // Add current user as owner
-            const { error: memberError } = await supabase
-                .from('account_members')
-                .insert({
-                    account_id: account.id,
-                    user_id: user.id,
-                    role: 'owner'
-                })
-
-            if (memberError) throw memberError
-
-            // Refresh accounts list
-            await fetchUserAccounts(user.id)
-
-            return { data: account, error: null }
-        } catch (err) {
-            return { data: null, error: err }
-        }
+        const { data, error } = await accountsApi.create({ name, slug })
+        if (error) return { data: null, error }
+        // force: the membership set changed, so the cache guard must not skip.
+        await fetchUserAccounts(userId, { force: true })
+        return { data, error: null }
     }
 
-    // Check if user has a specific role in current account
+    const updateAccount = async (accountId, patch) => {
+        const { data, error } = await accountsApi.update(accountId, patch)
+        if (error) return { data: null, error }
+        await fetchUserAccounts(userId, { force: true })
+        return { data, error: null }
+    }
+
+    /**
+     * Account deletion has no API route yet — the server-side cascade
+     * (brands -> collections -> assets -> R2 objects) is Phase 6/7 work and
+     * doing it half-way would orphan files in storage. Kept in the surface so
+     * callers still compile, but it fails loudly rather than pretending.
+     */
+    const deleteAccount = async () => ({
+        error: { message: 'Deleting an account is not available yet', code: 'not_implemented' },
+    })
+
     const hasRole = (requiredRole) => {
         if (!currentAccount) return false
         const roleHierarchy = { owner: 3, editor: 2, viewer: 1 }
@@ -353,8 +213,10 @@ export function AuthProvider({ children }) {
         session,
         accounts,
         currentAccount,
-        loading,
-        initialized,
+        loading: isPending,
+        // Better Auth resolves the session before first paint, so there is no
+        // separate "initialized" phase; kept so gates.jsx is untouched.
+        initialized: !isPending,
         accountsLoaded,
 
         // Auth methods
@@ -368,22 +230,29 @@ export function AuthProvider({ children }) {
         createAccount,
         updateAccount,
         deleteAccount,
-        refreshAccounts: () => user && fetchUserAccounts(user.id),
+        refreshAccounts: () => userId && fetchUserAccounts(userId, { force: true }),
 
         // Permission helpers
         hasRole,
         isOwner: () => hasRole('owner'),
         isEditor: () => hasRole('editor'),
         isViewer: () => hasRole('viewer'),
-        canEdit: () => hasRole('editor'), // editor or above
-        canManage: () => hasRole('owner')  // owner only
+        canEdit: () => hasRole('editor'),
+        canManage: () => hasRole('owner'),
     }
 
-    return (
-        <AuthContext.Provider value={value}>
-            {children}
-        </AuthContext.Provider>
-    )
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/* localStorage is unavailable during SSR and in privacy modes. */
+function safeGetItem(k) {
+    try { return typeof window !== 'undefined' ? localStorage.getItem(k) : null } catch { return null }
+}
+function safeSetItem(k, v) {
+    try { localStorage.setItem(k, v) } catch { /* ignore */ }
+}
+function safeRemoveItem(k) {
+    try { localStorage.removeItem(k) } catch { /* ignore */ }
 }
 
 export default AuthContext

@@ -2,7 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link, useLocation } from '@/compat/router'
-import { supabase, uploadFile } from '../../lib/supabase'
+import { useUpload } from '../../contexts/UploadContext'
+import { brandsApi } from '../../lib/api'
+
+/**
+ * Brand slugs are globally unique (they become {slug}.guidr.space), so two
+ * tenants both creating "Marketing" would collide. The random suffix makes
+ * that a non-event instead of a 409 the user cannot resolve.
+ */
+function slugify(name) {
+    const base = String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    return `${base || 'brand'}-${Math.random().toString(36).slice(2, 6)}`
+}
 import { createDefaultSections } from '../../data/defaultSections'
 import { useAuth } from '../../contexts/AuthContext'
 import { getBrandUrl } from '../../lib/domainResolver'
@@ -106,8 +117,10 @@ export default function BrandsDashboard() {
 
     const {
         user, currentAccount, accounts, switchAccount, signOut, refreshAccounts,
+        createAccount,
         loading: authLoading, initialized, accountsLoaded
     } = useAuth()
+    const upload = useUpload()
 
     const loadBrands = useCallback(async () => {
         if (!currentAccount) {
@@ -118,16 +131,12 @@ export default function BrandsDashboard() {
         try {
             setLoadError('')
             const { data, error } = await withTimeout(
-                supabase
-                    .from('brands')
-                    .select('id, name, logo_url, banner_url, primary_color, font_family, created_at, published, slug, account_id')
-                    .eq('account_id', currentAccount.id)
-                    .order('created_at', { ascending: false }),
+                brandsApi.listByAccount(currentAccount.id),
                 8000,
                 'Timed out loading brands'
             )
 
-            if (error) throw error
+            if (error) throw new Error(error.message)
             setBrands(data || [])
         } catch (err) {
             console.error('Failed to load brands:', err)
@@ -148,7 +157,7 @@ export default function BrandsDashboard() {
 
         setUploadingFont(true)
         try {
-            const url = await uploadFile(file, 'media')
+            const { url } = await upload(file)
             const fontName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '')
             if (type === 'new') {
                 setNewBrand({
@@ -178,7 +187,7 @@ export default function BrandsDashboard() {
 
         setUploadingBanner(true)
         try {
-            const url = await uploadFile(file, 'media')
+            const { url } = await upload(file)
             if (type === 'new') {
                 setNewBrand({ ...newBrand, bannerUrl: url })
             } else {
@@ -211,19 +220,15 @@ export default function BrandsDashboard() {
                 sections: sections
             }
 
-            const { data, error } = await supabase
-                .from('brands')
-                .insert({
-                    name: newBrand.name.trim(),
-                    primary_color: newBrand.color,
-                    font_family: newBrand.font,
-                    banner_url: newBrand.bannerUrl,
-                    draft: defaultDraft,
-                    published: null,
-                    account_id: currentAccount?.id
-                })
-                .select()
-                .single()
+            const { data, error } = await brandsApi.create({
+                accountId: currentAccount?.id,
+                name: newBrand.name.trim(),
+                slug: slugify(newBrand.name),
+                primary_color: newBrand.color,
+                font_family: newBrand.font,
+                banner_url: newBrand.bannerUrl,
+                draft: defaultDraft,
+            })
 
             if (error) throw error
 
@@ -269,18 +274,22 @@ export default function BrandsDashboard() {
                 }
             }
 
-            const { error } = await supabase
-                .from('brands')
-                .update({
-                    name: editBrand.name.trim(),
-                    primary_color: editBrand.color,
-                    font_family: editBrand.font,
-                    banner_url: editBrand.bannerUrl,
-                    draft: updatedDraft
-                })
-                .eq('id', editingBrandId)
+            const { error } = await brandsApi.update(editingBrandId, {
+                name: editBrand.name.trim(),
+                primary_color: editBrand.color,
+                font_family: editBrand.font,
+                banner_url: editBrand.bannerUrl,
+            })
 
-            if (error) throw error
+            if (error) throw new Error(error.message)
+
+            // `draft` is not accepted by the generic PATCH — the editor owns
+            // that field through its own debounced endpoint, so that the
+            // autosave path stays a single targeted $set.
+            if (updatedDraft) {
+                const { error: draftErr } = await brandsApi.saveDraft(editingBrandId, updatedDraft)
+                if (draftErr) throw new Error(draftErr.message)
+            }
 
             setShowEditModal(false)
             loadBrands() // Refresh the list
@@ -303,7 +312,8 @@ export default function BrandsDashboard() {
         if (!deleteConfirm.brandId) return
 
         try {
-            await supabase.from('brands').delete().eq('id', deleteConfirm.brandId)
+            const { error } = await brandsApi.remove(deleteConfirm.brandId)
+            if (error) throw new Error(error.message)
             setBrands(brands.filter(b => b.id !== deleteConfirm.brandId))
             setDeleteConfirm({ show: false, brandId: null, brandName: '' })
         } catch (err) {
@@ -319,26 +329,21 @@ export default function BrandsDashboard() {
             let slug = baseSlug
             let account, accountError
             for (let attempt = 0; attempt < 5; attempt++) {
-                const result = await supabase
-                    .from('accounts')
-                    .insert({ name: createWorkspaceName.trim(), slug })
-                    .select()
-                    .single()
+                // Creating the account also installs the caller as owner in the
+                // same write — the separate account_members insert is gone,
+                // along with the bootstrap-policy problem it used to need.
+                const result = await createAccount(createWorkspaceName.trim(), slug)
                 account = result.data
                 accountError = result.error
-                // 23505 = unique_violation - slug already taken, retry with a random suffix
-                if (accountError?.code === '23505') {
+                // Mongo E11000 surfaces as code 'duplicate' — the replacement
+                // for the Postgres 23505 check.
+                if (accountError?.code === 'duplicate') {
                     slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`
                     continue
                 }
                 break
             }
-            if (accountError) throw accountError
-
-            const { error: memberError } = await supabase
-                .from('account_members')
-                .insert({ account_id: account.id, user_id: user.id, role: 'owner' })
-            if (memberError) throw memberError
+            if (accountError) throw new Error(accountError.message)
 
             // Refresh accounts and switch to new one
             await refreshAccounts()
@@ -354,11 +359,8 @@ export default function BrandsDashboard() {
 
     const handleTransferBrand = async (brandId, targetAccountId) => {
         try {
-            const { error } = await supabase
-                .from('brands')
-                .update({ account_id: targetAccountId })
-                .eq('id', brandId)
-            if (error) throw error
+            const { error } = await brandsApi.transfer(brandId, targetAccountId)
+            if (error) throw new Error(error.message)
             setShowTransferModal(false)
             setTransferBrandId(null)
             loadBrands()

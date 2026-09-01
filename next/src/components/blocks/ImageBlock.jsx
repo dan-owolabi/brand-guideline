@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { ImagePlus, X, Maximize, Minimize, Loader2 } from 'lucide-react'
-import { uploadFile } from '../../lib/supabase'
+import { useUpload } from '../../contexts/UploadContext'
 import { ImagePresets, getResponsiveSrcSet } from '../../lib/imageOptimizer'
 
 export default function ImageBlock({
@@ -10,6 +10,7 @@ export default function ImageBlock({
     isAdmin = false,
     onUpdate
 }) {
+    const upload = useUpload()
     const [isUploading, setIsUploading] = useState(false)
     const [isResizing, setIsResizing] = useState(false)
     const [tempWidth, setTempWidth] = useState(content?.width || null)
@@ -30,12 +31,11 @@ export default function ImageBlock({
 
         setIsUploading(true)
         try {
-            // Upload to Supabase storage to get a persistent URL
-            const url = await uploadFile(file, 'media')
+            const { url } = await upload(file)
             onUpdate?.({ ...content, src: url, alt: file.name })
         } catch (err) {
             console.error('Failed to upload image:', err)
-            alert('Image upload failed. Please check your Supabase storage configuration.')
+            alert(`Image upload failed: ${err.message}`)
         } finally {
             setIsUploading(false)
             // Reset file input so same file can be selected again
