@@ -57,7 +57,21 @@ let resolveSession = async function defaultResolveSession(request) {
     const session = await auth.api.getSession({ headers })
 
     if (!session?.user?.id) return null
-    return { userId: session.user.id, user: session.user }
+    /**
+     * Normalize the id to a STRING before it reaches any repo.
+     *
+     * Better Auth stores user._id as a BSON UUID, and its Mongo adapter is
+     * documented as converting back to a string on read — but on this path it
+     * does not: session.user.id arrives as a UUID object. Our own collections
+     * store members[].userId as a plain string, and Mongo does not consider a
+     * UUID equal to its string form, so `{'members.userId': <UUID>}` matches
+     * zero documents and every workspace silently disappears. No error, no
+     * 401 — just an empty dashboard.
+     *
+     * One String() here covers every repo, because this is the only place a
+     * session id enters the system.
+     */
+    return { userId: String(session.user.id), user: session.user }
 }
 
 /** Test/bootstrap seam. Phase 5 calls this once with the Better Auth resolver. */

@@ -20,10 +20,15 @@ import { UUID } from 'mongodb'
  *     the Mongo adapter does `new UUID(value)` on write
  *     (@better-auth/mongo-adapter, index.mjs:97).
  *
- * The adapter converts back to a string on read (index.mjs:496), so anything
- * arriving from `auth.api.*` — including session.user.id — is already a
- * string. Conversion is therefore only needed when WE query Better Auth's
- * collections directly with the driver.
+ * CORRECTION (verified in production): the adapter does NOT reliably convert
+ * back to a string on read. `auth.api.getSession()` returns session.user.id as
+ * a BSON UUID object, not a string. Because Mongo does not treat a UUID as
+ * equal to its string form, passing it into a repo filter matches ZERO
+ * documents — every workspace vanishes with no error and no 401.
+ *
+ * guard.js therefore coerces with String() at the single point where a session
+ * id enters the system. Do not remove that: it is what keeps the two
+ * representations from meeting.
  *
  * Phase 7 note: the Supabase import writes these documents by hand, so it must
  * use toAuthId() for user._id and account.userId. Writing plain strings there
