@@ -17,10 +17,6 @@ function slugify(name) {
 import { createDefaultSections } from '../../data/defaultSections'
 import { useAuth } from '../../contexts/AuthContext'
 import { getBrandUrl } from '../../lib/domainResolver'
-import TiltCard from '../ui/TiltCard'
-import AnimatedModal from '../ui/AnimatedModal'
-import AnimatedDropdown from '../ui/AnimatedDropdown'
-import AnimatedTabs from '../ui/AnimatedTabs'
 
 import {
     Plus, Settings, Trash2, Loader2, ExternalLink,
@@ -111,7 +107,9 @@ export default function BrandsDashboard() {
     const [uploadingFont, setUploadingFont] = useState(false)
     const [uploadingBanner, setUploadingBanner] = useState(false)
     const fileInputRef = useRef(null)
-    const fontInputRef = useRef(null)
+    // Named to match the markup: fileInputRef is the FONT picker,
+    // bannerInputRef is the cover image picker.
+    const bannerInputRef = useRef(null)
     const editFileInputRef = useRef(null)
     const editBannerInputRef = useRef(null)
 
@@ -452,76 +450,99 @@ export default function BrandsDashboard() {
         )
     }
 
+
+    /*
+      Markup below is production's, grafted onto the migrated logic above.
+
+      The redesign that shipped only to staging moved the Published badge onto
+      the cover, moved the tabs beside the Create button, added a page heading
+      and changed the card proportions. Reverting it was a deliberate choice.
+
+      This is a graft rather than a wholesale file revert because production's
+      version still talks to Supabase. The logic above — brandsApi/accountsApi,
+      presigned R2 uploads — is the verified migration code and must not be
+      replaced. The two halves fit because both versions declare the same 20
+      state variables and the same handler names.
+
+      Production predates AnimatedModal/AnimatedDropdown/TiltCard, so this
+      markup uses plain elements; those components remain in use elsewhere.
+    */
     return (
-        <div className="flex min-h-screen bg-[#FAFAFA] font-sans selection:bg-black selection:text-white">
-            {/* Sidebar - Clean detached design */}
-            <aside className="hidden md:flex w-64 flex-col fixed top-0 bottom-0 left-0 z-30 p-6">
-                <div className="flex items-center gap-2 font-bold text-xl mb-12">
-                    <img src="/guidr-logo.png" alt="Guidr" className="h-7" />
+        <div className="flex min-h-screen bg-gray-50 font-sans">
+            {/* Sidebar - hidden on mobile */}
+            <aside className="hidden md:flex w-64 bg-white border-r border-gray-100 flex-shrink-0 flex-col fixed top-0 bottom-0 left-0 z-30">
+                <div className="p-6">
+                    <div className="flex items-center gap-2 font-bold text-xl mb-8">
+                        <img src="/guidr-logo.png" alt="Guidr" className="h-8" />
+                    </div>
+
+                    <div className="space-y-1">
+                        <SidebarItem icon={Briefcase} label="Brand Guidelines" active />
+                        <Link to="/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium">
+                            <Settings size={18} />
+                            Settings
+                        </Link>
+                    </div>
                 </div>
 
-                <div className="space-y-1">
-                    <SidebarItem icon={Briefcase} label="Brand Guidelines" active />
-                    <Link to="/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-black/5 hover:text-gray-900 transition-colors text-sm font-medium">
-                        <Settings size={20} />
-                        Settings
-                    </Link>
-                </div>
-
-                <div className="mt-auto pt-4 space-y-4">
-                    {/* Account Switcher */}
-                    <div className="relative group">
+                <div className="mt-auto p-4 border-t border-gray-100 space-y-2">
+                    {/* Account Switcher — click-based dropdown */}
+                    <div className="relative">
                         <button
                             onClick={() => setShowWorkspaceMenu(v => !v)}
-                            className="flex items-center gap-3 w-full p-3 hover:bg-black/5 rounded-xl transition-colors text-sm font-medium text-gray-700"
+                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium text-gray-600"
                         >
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                            <div className="w-6 h-6 rounded bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-bold">
                                 {currentAccount?.name?.charAt(0) || 'A'}
                             </div>
                             <span className="flex-1 text-left truncate">{currentAccount?.name}</span>
-                            <ChevronDown size={16} className={`transition-transform duration-200 text-gray-400 group-hover:text-gray-600 ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
+                            <ChevronDown size={14} className={`transition-transform ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
                         </button>
-                        <AnimatedDropdown isOpen={showWorkspaceMenu} onClose={() => setShowWorkspaceMenu(false)} origin="bottom-left" className="bottom-full left-0 right-0 mb-2 w-full">
-                            <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-2xl shadow-float p-2 text-sm overflow-hidden">
-                                {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
-                                    <button
-                                        key={account.id}
-                                        onClick={() => { switchAccount(account.id); setShowWorkspaceMenu(false) }}
-                                        className="flex items-center gap-3 w-full p-2 hover:bg-black/5 rounded-lg text-left transition-colors"
-                                    >
-                                        <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-bold border border-black/5">
-                                            {account.name?.charAt(0) || 'A'}
-                                        </div>
-                                        <span className="truncate font-medium text-gray-700">{account.name}</span>
-                                    </button>
-                                ))}
-                                {accounts.length === 0 && (
-                                    <p className="p-3 text-xs text-gray-400 text-center font-medium">No other workspaces</p>
-                                )}
-                                <div className="h-px bg-black/5 my-2" />
-                                <button
-                                    onClick={() => { setShowCreateWorkspace(true); setShowWorkspaceMenu(false) }}
-                                    className="flex items-center justify-center gap-2 w-full p-2 hover:bg-black text-black hover:text-white rounded-lg text-sm font-medium transition-colors"
-                                >
-                                    <Plus size={16} />
-                                    New Workspace
-                                </button>
-                            </div>
-                        </AnimatedDropdown>
+                        {showWorkspaceMenu && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowWorkspaceMenu(false)} />
+                                <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                    {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
+                                        <button
+                                            key={account.id}
+                                            onClick={() => { switchAccount(account.id); setShowWorkspaceMenu(false) }}
+                                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left"
+                                        >
+                                            <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
+                                                {account.name?.charAt(0) || 'A'}
+                                            </div>
+                                            <span className="truncate">{account.name}</span>
+                                        </button>
+                                    ))}
+                                    {accounts.length === 0 && (
+                                        <p className="p-2 text-xs text-gray-400 text-center">No other workspaces</p>
+                                    )}
+                                    <div className="border-t border-gray-100">
+                                        <button
+                                            onClick={() => { setShowCreateWorkspace(true); setShowWorkspaceMenu(false) }}
+                                            className="flex items-center gap-2 w-full p-2 hover:bg-gray-50 text-sm text-left text-pink-600 font-medium"
+                                        >
+                                            <Plus size={14} />
+                                            Create New Workspace
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* User Profile */}
-                    <div className="flex items-center gap-3 p-3 bg-white border border-black/5 rounded-2xl shadow-sm">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 text-sm font-bold border border-white">
+                    <div className="flex items-center gap-3 p-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-pink-500 to-rose-500 flex items-center justify-center text-white text-sm font-medium">
                             {user?.email?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{user?.email}</p>
-                            <p className="text-xs text-gray-500 font-medium truncate">{currentAccount?.role || 'Member'}</p>
+                            <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
+                            <p className="text-xs text-gray-400 truncate">{currentAccount?.role || 'Member'}</p>
                         </div>
                         <button
                             onClick={signOut}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                             title="Sign out"
                         >
                             <LogOut size={16} />
@@ -531,575 +552,573 @@ export default function BrandsDashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 md:ml-64 p-4 md:p-8 md:pl-0 max-w-[1400px] w-full">
-                <div className="bg-white rounded-[32px] min-h-[calc(100vh-4rem)] md:min-h-full border border-black/5 shadow-sm p-6 md:p-12">
-                    
-                    {/* Header Actions */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
-                        <div>
-                            <h1 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">Brand Guidelines</h1>
-                            <p className="text-gray-500 text-sm font-medium">Manage and organize your brand assets.</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4">
-                            <AnimatedTabs 
-                                tabs={[
-                                    { id: 'all', label: 'All' },
-                                    { id: 'published', label: 'Published' },
-                                    { id: 'draft', label: 'Drafts' }
-                                ]}
-                                activeTab={filter}
-                                onChange={setFilter}
-                            />
-                            
+            <main className="flex-1 md:ml-64 p-4 md:p-8">
+                {/* Header Actions */}
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+                        {['all', 'published', 'draft'].map(filterOption => (
                             <button
-                                onClick={() => setShowNewModal(true)}
-                                className="flex items-center justify-center gap-2 px-6 py-2 h-[36px] bg-black text-white font-medium rounded-full hover:bg-gray-800 transition-all shadow-float hover:scale-[1.02] active:scale-[0.98]"
+                                key={filterOption}
+                                onClick={() => setFilter(filterOption)}
+                                className={`px-4 py-2 capitalize font-medium rounded-lg text-sm transition-all ${filter === filterOption
+                                    ? 'bg-gray-100 text-gray-900'
+                                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                    }`}
                             >
-                                <Plus size={16} />
-                                <span className="hidden sm:inline">Create Brand</span>
+                                {filterOption === 'draft' ? 'Drafts' : filterOption === 'all' ? 'All' : 'Published'}
                             </button>
-                        </div>
+                        ))}
                     </div>
 
-                    {/* Brands Grid */}
-                    {filteredBrands.length === 0 ? (
-                        <div className="text-center py-32 rounded-[32px] border border-dashed border-black/10 bg-gray-50/50">
-                            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-black/5 flex items-center justify-center mx-auto mb-6">
-                                <Briefcase className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                                {filter === 'all' ? 'No brands yet' : `No ${filter} brands`}
-                            </h3>
-                            <p className="text-gray-500 mb-8 max-w-sm mx-auto">
-                                {filter === 'all' ? 'Start by creating your first brand project to build out its guidelines.' : `You don't have any ${filter} brands matching this filter.`}
-                            </p>
-                            <button
-                                onClick={() => setShowNewModal(true)}
-                                className="inline-flex items-center gap-2 text-black font-semibold hover:bg-black/5 px-6 py-3 rounded-full transition-colors"
-                            >
-                                <Plus size={18} />
-                                Create your first brand
-                            </button>
+                    <button
+                        onClick={() => setShowNewModal(true)}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white font-medium rounded-full hover:bg-gray-800 transition-all shadow-sm hover:shadow-md"
+                    >
+                        <Plus size={18} />
+                        Create
+                    </button>
+                </div>
+
+                {/* Brands Grid */}
+                {filteredBrands.length === 0 ? (
+                    <div className="text-center py-32 bg-white rounded-2xl border border-dashed border-gray-300">
+                        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <Plus className="w-8 h-8 text-gray-400" />
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                            {filteredBrands.map((brand) => (
-                                <TiltCard key={brand.id} onClick={() => navigate(getEditorPath(brand.id))}>
-                                    {/* Card Cover */}
-                                    <div
-                                        className="h-48 w-full relative flex flex-col justify-between p-4"
-                                        style={{
-                                            backgroundColor: brand.primary_color || '#f3f4f6',
-                                            backgroundImage: brand.primary_color ? `linear-gradient(135deg, ${brand.primary_color}20 0%, ${brand.primary_color}80 100%)` : 'none'
-                                        }}
-                                    >
-                                        <div className="flex justify-between items-start z-10 relative">
-                                            {brand.published ? (
-                                                <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold bg-white/90 text-black backdrop-blur-sm shadow-sm border border-black/5">
-                                                    Published
-                                                </span>
-                                            ) : <div></div>}
-                                            
-                                            {/* ⋯ Menu */}
-                                            <div className="relative opacity-0 group-hover:opacity-100 transition-opacity duration-300" onClick={e => e.stopPropagation()}>
-                                                <button
-                                                    className="p-2 bg-white/90 backdrop-blur-md rounded-full hover:bg-white hover:scale-105 text-gray-700 transition-all shadow-sm border border-black/5"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setOpenMenuId(openMenuId === brand.id ? null : brand.id)
-                                                    }}
-                                                >
-                                                    <MoreHorizontal size={18} />
-                                                </button>
-                                                <AnimatedDropdown isOpen={openMenuId === brand.id} onClose={() => setOpenMenuId(null)} origin="top-right" className="right-0 top-12 w-48">
-                                                    <div className="bg-white/90 backdrop-blur-2xl border border-black/5 rounded-2xl shadow-float p-2 text-sm overflow-hidden flex flex-col gap-1">
+                        <h3 className="text-lg font-medium text-gray-900">
+                            {filter === 'all' ? 'No brand guidelines yet' : `No ${filter} projects`}
+                        </h3>
+                        <p className="text-gray-500 mb-6">
+                            {filter === 'all' ? 'Create your first brand project to get started.' : `You don't have any ${filter} projects yet.`}
+                        </p>
+                        <button
+                            onClick={() => setShowNewModal(true)}
+                            className="text-pink-600 font-medium hover:underline"
+                        >
+                            Create now
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredBrands.map((brand) => (
+                            <div
+                                key={brand.id}
+                                className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
+                                onClick={() => navigate(getEditorPath(brand.id))}
+                            >
+                                {/* Card Cover */}
+                                <div
+                                    className="h-48 w-full relative flex items-center justify-center"
+                                    style={{
+                                        backgroundColor: brand.primary_color || '#f3f4f6',
+                                        backgroundImage: `linear-gradient(135deg, ${brand.primary_color}20 0%, ${brand.primary_color}80 100%)`
+                                    }}
+                                >
+                                    {/* ⋯ Menu */}
+                                    <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="relative" onClick={e => e.stopPropagation()}>
+                                            <button
+                                                className="p-1.5 bg-white/90 backdrop-blur rounded-lg hover:bg-white text-gray-700 transition-colors shadow-sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setOpenMenuId(openMenuId === brand.id ? null : brand.id)
+                                                }}
+                                            >
+                                                <MoreHorizontal size={16} />
+                                            </button>
+                                            {openMenuId === brand.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                                    <div className="absolute right-0 top-8 z-20 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1 text-sm">
                                                         <button
-                                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 hover:bg-black/5 hover:text-black rounded-xl transition-colors font-medium"
-                                                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleEditClick(brand) }}
+                                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                            onClick={() => { setOpenMenuId(null); handleEditClick(brand) }}
                                                         >
-                                                            <Pencil size={16} /> Edit settings
+                                                            <Pencil size={14} /> Edit settings
                                                         </button>
                                                         {brand.published && (
                                                             <a
                                                                 href={getBrandUrl(brand.slug || brand.id)}
                                                                 target="_blank"
                                                                 rel="noreferrer"
-                                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 hover:bg-black/5 hover:text-black rounded-xl transition-colors font-medium"
-                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }}
+                                                                className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                                onClick={() => setOpenMenuId(null)}
                                                             >
-                                                                <ExternalLink size={16} /> View live
+                                                                <ExternalLink size={14} /> View live
                                                             </a>
                                                         )}
                                                         {accounts.length > 1 && (
                                                             <button
-                                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-700 hover:bg-black/5 hover:text-black rounded-xl transition-colors font-medium"
-                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setTransferBrandId(brand.id); setShowTransferModal(true) }}
+                                                                className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                                                                onClick={() => { setOpenMenuId(null); setTransferBrandId(brand.id); setShowTransferModal(true) }}
                                                             >
-                                                                <ArrowRightLeft size={16} /> Transfer
+                                                                <ArrowRightLeft size={14} /> Transfer
                                                             </button>
                                                         )}
-                                                        <div className="h-px bg-black/5 my-1" />
+                                                        <div className="my-1 border-t border-gray-100" />
                                                         <button
-                                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
-                                                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleDeleteClick(brand.id, brand.name) }}
+                                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-red-600 hover:bg-red-50 transition-colors"
+                                                            onClick={() => { setOpenMenuId(null); handleDeleteClick(brand.id, brand.name) }}
                                                         >
-                                                            <Trash2 size={16} /> Delete
+                                                            <Trash2 size={14} /> Delete
                                                         </button>
                                                     </div>
-                                                </AnimatedDropdown>
-                                            </div>
+                                                </>
+                                            )}
                                         </div>
-
-                                        {brand.banner_url && (
-                                            <img
-                                                src={brand.banner_url}
-                                                alt={brand.name}
-                                                /*
-                                                  No blend mode here on purpose.
-                                                  `mix-blend-overlay` composites the banner against
-                                                  the card's primary_color, which erases the artwork
-                                                  entirely whenever that colour is black — Inovarsity
-                                                  and Aravint both use #000000 and rendered as solid
-                                                  black tiles. Rounded corners are kept; the blend is
-                                                  not.
-                                                */
-                                                className="absolute inset-0 w-full h-full object-cover rounded-t-2xl"
-                                            />
-                                        )}
                                     </div>
 
-                                    {/* Card Footer */}
-                                    <div className="p-5 flex-1 w-full bg-white relative z-10 rounded-b-2xl flex flex-col justify-center">
-                                        <h3 className="text-lg font-bold text-gray-900 truncate mb-1" title={brand.name}>
-                                            {brand.name}
-                                        </h3>
-                                        <p className="text-sm text-gray-500 font-medium">
+                                    {/* Banner as Full Background */}
+                                    {brand.banner_url && (
+                                        <img
+                                            src={brand.banner_url}
+                                            alt={brand.name}
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Card Footer */}
+                                <div className="p-4 bg-white relative">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            {brand.published && (
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-bold bg-green-100 text-green-700 border border-green-200">
+                                                    Published
+                                                </span>
+                                            )}
+                                            <h3 className="text-sm font-semibold text-gray-900 truncate max-w-[150px]" title={brand.name}>
+                                                {brand.name}
+                                            </h3>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-gray-500">
                                             Last updated {new Date(brand.created_at).toLocaleDateString()}
                                         </p>
+
+                                        {/* {(brand.draft?.sections?.length || 0)} sections */}
                                     </div>
-                                </TiltCard>
-                            ))}
-                        </div>
-                    )}
-                </div>
+
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </main>
 
             {/* Creation Modal */}
-            <AnimatedModal isOpen={showNewModal} onClose={() => { setShowNewModal(false); resetForm(); }}>
-                <div className="bg-white/95 backdrop-blur-2xl rounded-[32px] w-full shadow-float border border-white/50 overflow-hidden">
-                    <div className="px-8 py-6 flex justify-between items-center border-b border-black/5">
-                        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Create Brand</h2>
-                        <button onClick={() => { setShowNewModal(false); resetForm(); }} className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 text-gray-500 transition-colors">✕</button>
-                    </div>
+            {showNewModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                            <h2 className="text-lg font-semibold text-gray-900">Create Brand Guideline</h2>
+                            <button onClick={() => { setShowNewModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600">✕</button>
+                        </div>
 
-                    <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                        {/* 1. Banner & Name */}
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-3">Cover Banner</label>
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="w-full aspect-[21/9] rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-black/20 hover:bg-gray-50/50 transition-colors overflow-hidden relative group"
-                                >
+                        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                            {/* 1. Banner & Name */}
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Cover Banner</label>
+                                    <div
+                                        onClick={() => bannerInputRef.current?.click()}
+                                        className="w-full aspect-[16/9] rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors overflow-hidden relative"
+                                    >
+                                        <input
+                                            type="file"
+                                            ref={bannerInputRef}
+                                            className="hidden"
+                                            accept="image/png,image/jpeg,image/webp"
+                                            onChange={(e) => handleBannerUpload(e, 'new')}
+                                        />
+                                        {uploadingBanner ? (
+                                            <Loader2 className="animate-spin text-gray-400" />
+                                        ) : newBrand.bannerUrl ? (
+                                            <img src={newBrand.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center">
+                                                <Upload size={24} className="text-gray-400 mx-auto mb-2" />
+                                                <span className="text-sm text-gray-500 font-medium">Upload Banner Image</span>
+                                                <p className="text-xs text-gray-400 mt-1">Recommended: 1920×1080px</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Name</label>
                                     <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        className="hidden"
-                                        accept="image/png,image/jpeg,image/webp"
-                                        onChange={handleBannerUpload}
+                                        type="text"
+                                        value={newBrand.name}
+                                        onChange={(e) => setNewBrand({ ...newBrand, name: e.target.value })}
+                                        placeholder="e.g. Acme Corp"
+                                        className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none transition-all"
+                                        autoFocus
                                     />
-                                    {uploadingBanner ? (
-                                        <Loader2 className="animate-spin text-gray-400 w-8 h-8" />
-                                    ) : newBrand.bannerUrl ? (
-                                        <>
-                                            <img src={newBrand.bannerUrl} alt="Banner" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                                <span className="opacity-0 group-hover:opacity-100 bg-white/90 backdrop-blur text-black text-sm font-medium px-4 py-2 rounded-full transition-opacity shadow-sm">Change Cover</span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="text-center transition-transform duration-300 group-hover:scale-105">
-                                            <div className="w-12 h-12 rounded-full bg-black/5 flex items-center justify-center mx-auto mb-3 text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
-                                                <Upload size={20} />
-                                            </div>
-                                            <span className="text-sm text-gray-900 font-semibold block">Upload Banner</span>
-                                            <p className="text-xs text-gray-500 mt-1 font-medium">Recommended: 1920×1080px</p>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
+                            {/* 2. Color Theme */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-3">Brand Name</label>
-                                <input
-                                    type="text"
-                                    value={newBrand.name}
-                                    onChange={(e) => setNewBrand({ ...newBrand, name: e.target.value })}
-                                    placeholder="e.g. Acme Corp"
-                                    className="w-full px-5 py-4 bg-gray-50 border border-black/5 rounded-2xl focus:bg-white focus:border-black focus:ring-1 focus:ring-black outline-none transition-all text-gray-900 placeholder:text-gray-400 font-medium"
-                                />
-                            </div>
-                        </div>
-
-                        {/* 2. Color Theme */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-3">Brand Color</label>
-                            <div className="flex gap-3 flex-wrap">
-                                {COLOR_PRESETS.map(color => (
-                                    <button
-                                        key={color}
-                                        onClick={() => setNewBrand({ ...newBrand, color })}
-                                        className={`w-12 h-12 rounded-full transition-all duration-300 ${newBrand.color === color ? 'scale-110 shadow-md ring-2 ring-offset-2 ring-black' : 'hover:scale-105 border border-black/5'}`}
-                                        style={{ backgroundColor: color }}
-                                    />
-                                ))}
-                                <div className="relative transition-transform duration-300 hover:scale-105">
-                                    <input
-                                        type="color"
-                                        value={newBrand.color}
-                                        onChange={(e) => setNewBrand({ ...newBrand, color: e.target.value })}
-                                        className="w-12 h-12 rounded-full overflow-hidden opacity-0 absolute inset-0 cursor-pointer"
-                                    />
-                                    <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 pointer-events-none">
-                                        <Plus size={20} className="text-gray-400" />
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Brand Color</label>
+                                <div className="flex gap-3 flex-wrap">
+                                    {COLOR_PRESETS.map(color => (
+                                        <button
+                                            key={color}
+                                            onClick={() => setNewBrand({ ...newBrand, color })}
+                                            className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 ${newBrand.color === color ? 'border-black ring-2 ring-gray-100' : 'border-transparent'}`}
+                                            style={{ backgroundColor: color }}
+                                        />
+                                    ))}
+                                    <div className="relative">
+                                        <input
+                                            type="color"
+                                            value={newBrand.color}
+                                            onChange={(e) => setNewBrand({ ...newBrand, color: e.target.value })}
+                                            className="w-10 h-10 rounded-full overflow-hidden opacity-0 absolute inset-0 cursor-pointer"
+                                        />
+                                        <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center bg-white pointer-events-none">
+                                            <Plus size={16} className="text-gray-400" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* 3. Typography Selection */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-3">Typography</label>
-                            
-                            {/* Custom Font Upload */}
-                            <div className="mb-4">
-                                <div
-                                    onClick={() => fontInputRef.current?.click()}
-                                    className={`w-full border-2 border-dashed rounded-2xl p-5 flex items-center justify-center gap-3 cursor-pointer transition-all duration-300 ${newBrand.customFontUrl ? 'border-black bg-black text-white shadow-float' : 'border-gray-200 hover:border-black/20 hover:bg-gray-50/50 text-gray-600'}`}
-                                >
-                                    <input
-                                        type="file"
-                                        ref={fontInputRef}
-                                        className="hidden"
-                                        accept=".ttf,.otf,.woff,.woff2"
-                                        onChange={handleFontUpload}
-                                    />
-                                    {uploadingFont ? (
-                                        <Loader2 className="animate-spin" />
-                                    ) : newBrand.customFontUrl ? (
-                                        <>
-                                            <Type className="w-5 h-5" />
-                                            <span className="font-semibold">Custom Font: {newBrand.customFontName || 'Uploaded'}</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Upload className="w-5 h-5 text-gray-400" />
-                                            <span className="font-medium">Upload Font Family (.ttf, .otf)</span>
-                                        </>
-                                    )}
+                            {/* 3. Typography Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Typography</label>
+
+                                {/* Custom Font Upload */}
+                                <div className="mb-4">
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className={`w-full border-2 border-dashed rounded-xl p-4 flex items-center justify-center gap-3 cursor-pointer transition-colors ${newBrand.customFontUrl ? 'border-pink-500 bg-pink-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+                                    >
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            accept=".ttf,.otf,.woff,.woff2"
+                                            onChange={(e) => handleFontUpload(e, 'new')}
+                                        />
+                                        {uploadingFont ? (
+                                            <Loader2 className="animate-spin text-gray-400" />
+                                        ) : newBrand.customFontUrl ? (
+                                            <>
+                                                <Type className="text-pink-600" />
+                                                <span className="text-gray-900 font-medium">Custom Font: {newBrand.customFontName}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="text-gray-400" />
+                                                <span className="text-gray-500">Upload Font Family (.ttf, .otf)</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Google Fonts List */}
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2">Or choose from Google Fonts</p>
+                                    {GOOGLE_FONTS.map(font => (
+                                        <button
+                                            key={font.value}
+                                            onClick={() => setNewBrand({ ...newBrand, font: font.value, customFontUrl: null })}
+                                            className={`w-full px-4 py-3 text-left rounded-xl border transition-all flex items-center justify-between ${newBrand.font === font.value && !newBrand.customFontUrl ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-200'}`}
+                                        >
+                                            <div>
+                                                <span className="text-sm font-medium text-gray-900 block">{font.label}</span>
+                                                <span className="text-xs text-gray-500">{font.category}</span>
+                                            </div>
+                                            <span style={{ fontFamily: font.value }} className="text-lg text-gray-800">Ag</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Google Fonts List */}
-                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-3 pl-1">Or choose a preset</p>
-                                {GOOGLE_FONTS.map(font => (
-                                    <button
-                                        key={font.value}
-                                        onClick={() => setNewBrand({ ...newBrand, font: font.value, customFontUrl: null })}
-                                        className={`w-full px-5 py-4 text-left rounded-2xl border transition-all duration-300 flex items-center justify-between group ${newBrand.font === font.value && !newBrand.customFontUrl ? 'border-black bg-gray-900 text-white shadow-md' : 'border-gray-100 hover:border-gray-300 bg-white hover:shadow-sm'}`}
-                                    >
-                                        <div>
-                                            <span className={`text-base font-semibold block ${newBrand.font === font.value && !newBrand.customFontUrl ? 'text-white' : 'text-gray-900 group-hover:text-black'}`}>{font.label}</span>
-                                            <span className={`text-xs mt-0.5 ${newBrand.font === font.value && !newBrand.customFontUrl ? 'text-gray-300' : 'text-gray-500'}`}>{font.category}</span>
-                                        </div>
-                                        <span style={{ fontFamily: font.value }} className={`text-2xl ${newBrand.font === font.value && !newBrand.customFontUrl ? 'text-white' : 'text-gray-900'}`}>Ag</span>
-                                    </button>
-                                ))}
-                            </div>
+                        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+                            <button
+                                onClick={() => { setShowNewModal(false); resetForm(); }}
+                                className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={createBrand}
+                                disabled={!newBrand.name.trim() || creating || uploadingFont}
+                                className="px-8 py-2.5 bg-black text-white font-medium rounded-full hover:bg-gray-800 disabled:opacity-50 transition-all shadow-sm hover:shadow"
+                            >
+                                {creating ? 'Creating...' : 'Create Brand'}
+                            </button>
                         </div>
                     </div>
-
-                    <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-gray-50/50">
-                        <button
-                            onClick={() => { setShowNewModal(false); resetForm(); }}
-                            className="px-6 py-3 text-gray-600 font-semibold hover:text-black transition-colors rounded-xl hover:bg-black/5"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={createBrand}
-                            disabled={!newBrand.name.trim() || creating || uploadingFont}
-                            className="px-8 py-3 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all shadow-float hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                            {creating ? 'Creating...' : 'Create Brand'}
-                        </button>
-                    </div>
                 </div>
-            </AnimatedModal>
+            )}
 
             {/* Edit Modal */}
-            <AnimatedModal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
-                <div className="bg-white/95 backdrop-blur-2xl rounded-[32px] w-full shadow-float border border-white/50 overflow-hidden">
-                    <div className="px-8 py-6 flex justify-between items-center border-b border-black/5">
-                        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Brand Settings</h2>
-                        <button onClick={() => setShowEditModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 text-gray-500 transition-colors">✕</button>
-                    </div>
+            {showEditModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                            <h2 className="text-lg font-semibold text-gray-900">Brand Settings</h2>
+                            <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                        </div>
 
-                    <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                        {/* 1. Banner & Name */}
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-3">Cover Banner</label>
-                                <div
-                                    onClick={() => editBannerInputRef.current?.click()}
-                                    className="w-full aspect-[21/9] rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-black/20 hover:bg-gray-50/50 transition-colors overflow-hidden relative group"
-                                >
+                        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                            {/* 1. Banner & Name */}
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Cover Banner</label>
+                                    <div
+                                        onClick={() => editBannerInputRef.current?.click()}
+                                        className="w-full aspect-[16/9] rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors overflow-hidden relative"
+                                    >
+                                        <input
+                                            type="file"
+                                            ref={editBannerInputRef}
+                                            className="hidden"
+                                            accept="image/png,image/jpeg,image/webp"
+                                            onChange={(e) => handleBannerUpload(e, 'edit')}
+                                        />
+                                        {uploadingBanner ? (
+                                            <Loader2 className="animate-spin text-gray-400" />
+                                        ) : editBrand.bannerUrl ? (
+                                            <img src={editBrand.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center">
+                                                <Upload size={24} className="text-gray-400 mx-auto mb-2" />
+                                                <span className="text-sm text-gray-500 font-medium">Upload Banner Image</span>
+                                                <p className="text-xs text-gray-400 mt-1">Recommended: 1920×1080px</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Name</label>
                                     <input
-                                        type="file"
-                                        ref={editBannerInputRef}
-                                        className="hidden"
-                                        accept="image/png,image/jpeg,image/webp"
-                                        onChange={(e) => handleBannerUpload(e, 'edit')}
+                                        type="text"
+                                        value={editBrand.name}
+                                        onChange={(e) => setEditBrand({ ...editBrand, name: e.target.value })}
+                                        placeholder="e.g. Acme Corp"
+                                        className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none transition-all"
                                     />
-                                    {uploadingBanner ? (
-                                        <Loader2 className="animate-spin text-gray-400 w-8 h-8" />
-                                    ) : editBrand.bannerUrl ? (
-                                        <>
-                                            <img src={editBrand.bannerUrl} alt="Banner" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                                <span className="opacity-0 group-hover:opacity-100 bg-white/90 backdrop-blur text-black text-sm font-medium px-4 py-2 rounded-full transition-opacity shadow-sm">Change Cover</span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="text-center transition-transform duration-300 group-hover:scale-105">
-                                            <div className="w-12 h-12 rounded-full bg-black/5 flex items-center justify-center mx-auto mb-3 text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">
-                                                <Upload size={20} />
-                                            </div>
-                                            <span className="text-sm text-gray-900 font-semibold block">Upload Banner</span>
-                                            <p className="text-xs text-gray-500 mt-1 font-medium">Recommended: 1920×1080px</p>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
+                            {/* 2. Color Theme */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-3">Brand Name</label>
-                                <input
-                                    type="text"
-                                    value={editBrand.name}
-                                    onChange={(e) => setEditBrand({ ...editBrand, name: e.target.value })}
-                                    placeholder="e.g. Acme Corp"
-                                    className="w-full px-5 py-4 bg-gray-50 border border-black/5 rounded-2xl focus:bg-white focus:border-black focus:ring-1 focus:ring-black outline-none transition-all text-gray-900 placeholder:text-gray-400 font-medium"
-                                />
-                            </div>
-                        </div>
-
-                        {/* 2. Color Theme */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-3">Brand Color</label>
-                            <div className="flex gap-3 flex-wrap">
-                                {COLOR_PRESETS.map(color => (
-                                    <button
-                                        key={color}
-                                        onClick={() => setEditBrand({ ...editBrand, color })}
-                                        className={`w-12 h-12 rounded-full transition-all duration-300 ${editBrand.color === color ? 'scale-110 shadow-md ring-2 ring-offset-2 ring-black' : 'hover:scale-105 border border-black/5'}`}
-                                        style={{ backgroundColor: color }}
-                                    />
-                                ))}
-                                <div className="relative transition-transform duration-300 hover:scale-105">
-                                    <input
-                                        type="color"
-                                        value={editBrand.color}
-                                        onChange={(e) => setEditBrand({ ...editBrand, color: e.target.value })}
-                                        className="w-12 h-12 rounded-full overflow-hidden opacity-0 absolute inset-0 cursor-pointer"
-                                    />
-                                    <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 pointer-events-none">
-                                        <Plus size={20} className="text-gray-400" />
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Brand Color</label>
+                                <div className="flex gap-3 flex-wrap">
+                                    {COLOR_PRESETS.map(color => (
+                                        <button
+                                            key={color}
+                                            onClick={() => setEditBrand({ ...editBrand, color })}
+                                            className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 ${editBrand.color === color ? 'border-black ring-2 ring-gray-100' : 'border-transparent'}`}
+                                            style={{ backgroundColor: color }}
+                                        />
+                                    ))}
+                                    <div className="relative">
+                                        <input
+                                            type="color"
+                                            value={editBrand.color}
+                                            onChange={(e) => setEditBrand({ ...editBrand, color: e.target.value })}
+                                            className="w-10 h-10 rounded-full overflow-hidden opacity-0 absolute inset-0 cursor-pointer"
+                                        />
+                                        <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center bg-white pointer-events-none">
+                                            <Plus size={16} className="text-gray-400" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* 3. Typography Selection */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-3">Typography</label>
+                            {/* 3. Typography Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Typography</label>
 
-                            {/* Custom Font Upload */}
-                            <div className="mb-4">
-                                <div
-                                    onClick={() => editFileInputRef.current?.click()}
-                                    className={`w-full border-2 border-dashed rounded-2xl p-5 flex items-center justify-center gap-3 cursor-pointer transition-all duration-300 ${editBrand.customFontUrl ? 'border-black bg-black text-white shadow-float' : 'border-gray-200 hover:border-black/20 hover:bg-gray-50/50 text-gray-600'}`}
-                                >
-                                    <input
-                                        type="file"
-                                        ref={editFileInputRef}
-                                        className="hidden"
-                                        accept=".ttf,.otf,.woff,.woff2"
-                                        onChange={(e) => handleFontUpload(e, 'edit')}
-                                    />
-                                    {uploadingFont ? (
-                                        <Loader2 className="animate-spin" />
-                                    ) : editBrand.customFontUrl ? (
-                                        <>
-                                            <Type className="w-5 h-5" />
-                                            <span className="font-semibold">Custom Font: {editBrand.customFontName || 'Uploaded'}</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Upload className="w-5 h-5 text-gray-400" />
-                                            <span className="font-medium">Upload Font Family (.ttf, .otf)</span>
-                                        </>
-                                    )}
+                                {/* Custom Font Upload */}
+                                <div className="mb-4">
+                                    <div
+                                        onClick={() => editFileInputRef.current?.click()}
+                                        className={`w-full border-2 border-dashed rounded-xl p-4 flex items-center justify-center gap-3 cursor-pointer transition-colors ${editBrand.customFontUrl ? 'border-pink-500 bg-pink-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+                                    >
+                                        <input
+                                            type="file"
+                                            ref={editFileInputRef}
+                                            className="hidden"
+                                            accept=".ttf,.otf,.woff,.woff2"
+                                            onChange={(e) => handleFontUpload(e, 'edit')}
+                                        />
+                                        {uploadingFont ? (
+                                            <Loader2 className="animate-spin text-gray-400" />
+                                        ) : editBrand.customFontUrl ? (
+                                            <>
+                                                <Type className="text-pink-600" />
+                                                <span className="text-gray-900 font-medium">Custom Font: {editBrand.customFontName || 'Uploaded'}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="text-gray-400" />
+                                                <span className="text-gray-500">Upload Font Family (.ttf, .otf)</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Google Fonts List */}
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2">Or choose from Google Fonts</p>
+                                    {GOOGLE_FONTS.map(font => (
+                                        <button
+                                            key={font.value}
+                                            onClick={() => setEditBrand({ ...editBrand, font: font.value, customFontUrl: null })}
+                                            className={`w-full px-4 py-3 text-left rounded-xl border transition-all flex items-center justify-between ${editBrand.font === font.value && !editBrand.customFontUrl ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-200'}`}
+                                        >
+                                            <div>
+                                                <span className="text-sm font-medium text-gray-900 block">{font.label}</span>
+                                                <span className="text-xs text-gray-500">{font.category}</span>
+                                            </div>
+                                            <span style={{ fontFamily: font.value }} className="text-lg text-gray-800">Ag</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Google Fonts List */}
-                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-3 pl-1">Or choose a preset</p>
-                                {GOOGLE_FONTS.map(font => (
-                                    <button
-                                        key={font.value}
-                                        onClick={() => setEditBrand({ ...editBrand, font: font.value, customFontUrl: null })}
-                                        className={`w-full px-5 py-4 text-left rounded-2xl border transition-all duration-300 flex items-center justify-between group ${editBrand.font === font.value && !editBrand.customFontUrl ? 'border-black bg-gray-900 text-white shadow-md' : 'border-gray-100 hover:border-gray-300 bg-white hover:shadow-sm'}`}
-                                    >
-                                        <div>
-                                            <span className={`text-base font-semibold block ${editBrand.font === font.value && !editBrand.customFontUrl ? 'text-white' : 'text-gray-900 group-hover:text-black'}`}>{font.label}</span>
-                                            <span className={`text-xs mt-0.5 ${editBrand.font === font.value && !editBrand.customFontUrl ? 'text-gray-300' : 'text-gray-500'}`}>{font.category}</span>
-                                        </div>
-                                        <span style={{ fontFamily: font.value }} className={`text-2xl ${editBrand.font === font.value && !editBrand.customFontUrl ? 'text-white' : 'text-gray-900'}`}>Ag</span>
-                                    </button>
-                                ))}
-                            </div>
+                        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={updateBrandSettings}
+                                disabled={!editBrand.name.trim() || saving || uploadingFont}
+                                className="px-8 py-2.5 bg-black text-white font-medium rounded-full hover:bg-gray-800 disabled:opacity-50 transition-all shadow-sm hover:shadow"
+                            >
+                                {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
                         </div>
                     </div>
-
-                    <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-gray-50/50">
-                        <button
-                            onClick={() => setShowEditModal(false)}
-                            className="px-6 py-3 text-gray-600 font-semibold hover:text-black transition-colors rounded-xl hover:bg-black/5"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={updateBrandSettings}
-                            disabled={!editBrand.name.trim() || saving || uploadingFont}
-                            className="px-8 py-3 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all shadow-float hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                            {saving ? 'Saving...' : 'Save Changes'}
-                        </button>
-                    </div>
                 </div>
-            </AnimatedModal>
+            )}
 
             {/* Delete Confirmation Modal */}
-            <AnimatedModal isOpen={deleteConfirm.show} onClose={() => setDeleteConfirm({ show: false, brandId: null, brandName: '' })} maxWidth="max-w-md">
-                <div className="bg-white rounded-[32px] p-8 text-center shadow-float border border-black/5">
-                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                        <Trash2 size={32} />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">Delete Brand</h3>
-                    <p className="text-gray-500 mb-8 font-medium">
-                        Are you sure you want to delete <span className="font-bold text-gray-900">"{deleteConfirm.brandName}"</span>?<br/>
-                        This action cannot be undone.
-                    </p>
-                    <div className="flex gap-4 justify-center">
-                        <button
-                            onClick={() => setDeleteConfirm({ show: false, brandId: null, brandName: '' })}
-                            className="flex-1 px-6 py-3.5 text-gray-700 font-semibold hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={confirmDelete}
-                            className="flex-1 px-6 py-3.5 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
-                        >
-                            Delete
-                        </button>
+            {deleteConfirm.show && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 text-center">
+                            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Trash2 size={24} />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Project?</h3>
+                            <p className="text-gray-500 mb-6">
+                                Are you sure you want to delete <span className="font-semibold text-gray-900">"{deleteConfirm.brandName}"</span>?
+                                This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    onClick={() => setDeleteConfirm({ show: false, brandId: null, brandName: '' })}
+                                    className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors bg-gray-50 hover:bg-gray-100 rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-all shadow-sm hover:shadow"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </AnimatedModal>
+            )}
 
             {/* Create Workspace Modal */}
-            <AnimatedModal isOpen={showCreateWorkspace} onClose={() => { setShowCreateWorkspace(false); setCreateWorkspaceName('') }} maxWidth="max-w-md">
-                <div className="bg-white rounded-[32px] p-8 shadow-float border border-black/5">
-                    <div className="w-12 h-12 bg-black/5 text-black rounded-2xl flex items-center justify-center mb-6">
-                        <Plus size={24} />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">New Workspace</h3>
-                    <p className="text-gray-500 mb-6 font-medium text-sm">Create a separate environment for your brands.</p>
-                    <input
-                        type="text"
-                        placeholder="Workspace name"
-                        value={createWorkspaceName}
-                        onChange={(e) => setCreateWorkspaceName(e.target.value)}
-                        className="w-full px-5 py-4 bg-gray-50 border border-black/5 rounded-2xl focus:bg-white focus:border-black focus:ring-1 focus:ring-black outline-none transition-all text-gray-900 placeholder:text-gray-400 font-medium mb-8"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
-                    />
-                    <div className="flex gap-3 justify-end">
-                        <button
-                            onClick={() => { setShowCreateWorkspace(false); setCreateWorkspaceName('') }}
-                            className="px-6 py-3 text-gray-600 font-semibold hover:text-black transition-colors rounded-xl hover:bg-black/5"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleCreateWorkspace}
-                            disabled={creatingWorkspace || !createWorkspaceName.trim()}
-                            className="px-8 py-3 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
-                        >
-                            {creatingWorkspace ? 'Creating...' : 'Create'}
-                        </button>
+            {showCreateWorkspace && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Create New Workspace</h3>
+                            <input
+                                type="text"
+                                placeholder="Workspace name"
+                                value={createWorkspaceName}
+                                onChange={(e) => setCreateWorkspaceName(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 mb-4"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkspace()}
+                            />
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => { setShowCreateWorkspace(false); setCreateWorkspaceName('') }}
+                                    className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors bg-gray-50 hover:bg-gray-100 rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreateWorkspace}
+                                    disabled={creatingWorkspace || !createWorkspaceName.trim()}
+                                    className="px-5 py-2.5 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all shadow-sm disabled:opacity-50"
+                                >
+                                    {creatingWorkspace ? 'Creating...' : 'Create'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </AnimatedModal>
+            )}
 
             {/* Transfer Brand Modal */}
-            <AnimatedModal isOpen={showTransferModal && transferBrandId} onClose={() => { setShowTransferModal(false); setTransferBrandId(null) }} maxWidth="max-w-md">
-                <div className="bg-white rounded-[32px] p-8 shadow-float border border-black/5">
-                    <div className="w-16 h-16 bg-gray-100 text-black rounded-2xl flex items-center justify-center mx-auto mb-6">
-                        <ArrowRightLeft size={32} />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2 text-center tracking-tight">Transfer Brand</h3>
-                    <p className="text-gray-500 font-medium text-center mb-8">
-                        Select a workspace to move this brand to.
-                    </p>
-                    <div className="space-y-3">
-                        {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
-                            <button
-                                key={account.id}
-                                onClick={() => handleTransferBrand(transferBrandId, account.id)}
-                                className="flex items-center gap-4 w-full p-4 hover:bg-gray-50 rounded-2xl text-left border border-gray-200 transition-all hover:border-black hover:shadow-sm group"
-                            >
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center text-white text-sm font-bold shadow-sm transition-transform group-hover:scale-105">
-                                    {account.name?.charAt(0) || 'A'}
-                                </div>
-                                <span className="font-semibold text-gray-900 text-lg">{account.name}</span>
-                            </button>
-                        ))}
-                        {accounts.filter(a => a.id !== currentAccount?.id).length === 0 && (
-                            <div className="py-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                <p className="text-gray-500 font-medium">No other workspaces available.</p>
-                                <p className="text-gray-400 text-sm mt-1">Create one first using the sidebar menu.</p>
+            {showTransferModal && transferBrandId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6">
+                            <div className="w-12 h-12 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <ArrowRightLeft size={24} />
                             </div>
-                        )}
-                    </div>
-                    <div className="mt-8 flex justify-center">
-                        <button
-                            onClick={() => { setShowTransferModal(false); setTransferBrandId(null) }}
-                            className="px-8 py-3.5 text-gray-600 font-semibold hover:text-black hover:bg-black/5 rounded-xl transition-colors"
-                        >
-                            Cancel
-                        </button>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">Transfer Project</h3>
+                            <p className="text-gray-500 text-sm text-center mb-6">
+                                Move this brand to another workspace
+                            </p>
+                            <div className="space-y-2">
+                                {accounts.filter(a => a.id !== currentAccount?.id).map(account => (
+                                    <button
+                                        key={account.id}
+                                        onClick={() => handleTransferBrand(transferBrandId, account.id)}
+                                        className="flex items-center gap-3 w-full p-3 hover:bg-gray-50 rounded-xl text-sm text-left border border-gray-200 transition-colors"
+                                    >
+                                        <div className="w-8 h-8 rounded bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-bold">
+                                            {account.name?.charAt(0) || 'A'}
+                                        </div>
+                                        <span className="font-medium text-gray-900">{account.name}</span>
+                                    </button>
+                                ))}
+                                {accounts.filter(a => a.id !== currentAccount?.id).length === 0 && (
+                                    <p className="text-sm text-gray-400 text-center py-4">No other workspaces available. Create one first.</p>
+                                )}
+                            </div>
+                            <div className="mt-4 flex justify-center">
+                                <button
+                                    onClick={() => { setShowTransferModal(false); setTransferBrandId(null) }}
+                                    className="px-5 py-2.5 text-gray-600 font-medium hover:text-gray-900 transition-colors bg-gray-50 hover:bg-gray-100 rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </AnimatedModal>
+            )}
         </div>
     )
 }
 
-// eslint-disable-next-line no-unused-vars -- Icon is used as a JSX tag below; core no-unused-vars doesn't track that for params
 function SidebarItem({ icon: Icon, label, active = false }) {
     return (
         <button className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${active ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
