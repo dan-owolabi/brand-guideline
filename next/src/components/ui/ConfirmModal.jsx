@@ -66,8 +66,15 @@ export function ConfirmModal({
     }
 
     return (
-        <AnimatedModal isOpen={open} onClose={onClose} maxWidth="max-w-md">
-            <div className="relative bg-white/95 backdrop-blur-2xl rounded-[32px] shadow-float border border-white/50 w-full overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={onClose}
+            />
+
+            {/* Modal */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-in zoom-in-95 fade-in duration-200">
                 {/* Close button */}
                 <button
                     onClick={onClose}
@@ -109,7 +116,7 @@ export function ConfirmModal({
                     </div>
                 </div>
             </div>
-        </AnimatedModal>
+        </div>
     )
 }
 
@@ -184,8 +191,15 @@ export function InputModal({
     }
 
     return (
-        <AnimatedModal isOpen={open} onClose={onClose} maxWidth="max-w-md">
-            <div className="relative bg-white/95 backdrop-blur-2xl rounded-[32px] shadow-float border border-white/50 w-full overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={onClose}
+            />
+
+            {/* Modal */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-in zoom-in-95 fade-in duration-200">
                 {/* Close button */}
                 <button
                     onClick={onClose}
@@ -240,6 +254,6 @@ export function InputModal({
                     </div>
                 </form>
             </div>
-        </AnimatedModal>
+        </div>
     )
 }

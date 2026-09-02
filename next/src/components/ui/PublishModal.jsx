@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { X, Check, Globe, Loader2, AlertCircle, BookOpen, Image, Layers } from 'lucide-react'
 import { Button } from './Button'
-import AnimatedModal from './AnimatedModal'
 
 const PUBLISH_MODES = [
     {
@@ -71,8 +70,10 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
     }
 
     return (
-        <AnimatedModal isOpen={isOpen} onClose={!isPublishing ? onClose : () => {}} maxWidth="max-w-md">
-            <div className="relative bg-white/95 backdrop-blur-2xl rounded-[32px] shadow-float border border-white/50 w-full overflow-hidden">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={!isPublishing ? onClose : undefined} />
+
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
                         <div className="p-2 bg-green-100 text-green-600 rounded-lg">
@@ -194,6 +195,6 @@ export function PublishModal({ isOpen, onClose, onConfirm, initialSlug, brandNam
                     </Button>
                 </div>
             </div>
-        </AnimatedModal>
+        </div>
     )
 }

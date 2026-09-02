@@ -66,9 +66,11 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
     const {
         draft,
         loading,
+        saving,
         error,
         publish,
         updateBlock,
+        addBlock,
         removeBlock,
         updateSection,
         addSection,
@@ -125,6 +127,7 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
     const [publishModalOpen, setPublishModalOpen] = useState(false)
     const [publishSuccess, setPublishSuccess] = useState(false)
     const [isPublishing, setIsPublishing] = useState(false)
+    const [hoveredBlockIndex, setHoveredBlockIndex] = useState(null)
     // Initialize sidebar closed on mobile, open on desktop
     const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768)
     const [autoOpenMenuBlockId, setAutoOpenMenuBlockId] = useState(null)
@@ -143,7 +146,8 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
 
     // Use draft for admin, brandData for public
     const data = isAdmin ? draft : brandData?.published
-    const sections = useMemo(() => data?.sections || [], [data?.sections])
+    const sections = data?.sections || []
+    const tokens = data?.tokens || {}
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -173,6 +177,9 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
         if (!activeSlug) return sections[0]
         return sections.find(s => s.slug === activeSlug) || sections[0]
     }, [activeSlug, sections])
+
+    // Navigation pagination
+    const allSectionsList = useMemo(() => sections, [sections])
 
     // Extract H2/H3 for current section
     const subheadings = useMemo(() => {
@@ -264,9 +271,9 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
         }
     }
 
-    const activeSectionIndex = sections.findIndex(s => s.id === activeSection?.id)
-    const prevSection = activeSectionIndex > 0 ? sections[activeSectionIndex - 1] : null
-    const nextSection = activeSectionIndex < sections.length - 1 ? sections[activeSectionIndex + 1] : null
+    const activeSectionIndex = allSectionsList.findIndex(s => s.id === activeSection?.id)
+    const prevSection = activeSectionIndex > 0 ? allSectionsList[activeSectionIndex - 1] : null
+    const nextSection = activeSectionIndex < allSectionsList.length - 1 ? allSectionsList[activeSectionIndex + 1] : null
 
     const handlePublishClick = () => {
         setPublishModalOpen(true)
@@ -459,7 +466,7 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] selection:bg-black selection:text-white" onClick={clearSelection}>
+        <div className="min-h-screen bg-white" onClick={clearSelection}>
             {isAdmin && <FloatingTextToolbar />}
             <Header
                 brand={brandMetadata}
@@ -474,13 +481,13 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                 publishMode={isAdmin ? undefined : brandMetadata?.publishMode}
             />
 
-            <div className="flex pt-20 md:pt-28 min-h-screen max-w-[1600px] mx-auto relative">
+            <div className="flex pt-20 md:pt-24 min-h-screen">
                 {/* Sidebar */}
                 <aside className={`
-                    fixed md:sticky left-0 top-20 md:top-28 bottom-0 w-64 md:w-72 bg-white md:bg-transparent border-r border-gray-100 md:border-none flex flex-col transition-all duration-300 z-40 md:h-[calc(100vh-8rem)]
-                    ${sidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full md:w-0 md:translate-x-0 md:border-none md:opacity-0 pointer-events-none md:pointer-events-none'}
+                    fixed md:sticky left-0 top-20 md:top-24 bottom-0 w-64 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 z-40 md:h-[calc(100vh-6rem)]
+                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:w-0 md:translate-x-0 md:border-none md:opacity-0 pointer-events-none md:pointer-events-none'}
                 `}>
-                    <nav className="flex-1 px-6 py-8 min-w-[16rem] overflow-y-auto custom-scrollbar md:pr-4">
+                    <nav className="flex-1 px-6 py-8 min-w-[16rem] overflow-y-auto">
                         <DndContext
                             sensors={sensors}
                             collisionDetection={closestCenter}
@@ -606,8 +613,8 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                 </aside>
 
                 {/* Main Content */}
-                <main className={`flex-1 pt-8 md:pt-0 pb-24 px-4 md:px-12 lg:px-20 transition-all duration-300 ${sidebarOpen ? '' : 'md:-ml-0'}`}>
-                    <article className="max-w-[900px] mx-auto pb-24 bg-white md:rounded-[40px] md:shadow-float md:border md:border-black/5 p-6 md:p-16 lg:p-20 min-h-[calc(100vh-10rem)]">
+                <main className={`flex-1 pt-8 md:pt-32 pb-24 px-4 md:px-16 overflow-y-auto transition-all duration-300 ${sidebarOpen ? '' : 'md:-ml-0'}`}>
+                    <article className="max-w-3xl mx-auto pb-24">
                         {activeSection && (
                             <>
                                 {/* Section Title */}
@@ -641,6 +648,8 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                                                 return (
                                                     <div
                                                         key={block.id}
+                                                        onMouseEnter={() => setHoveredBlockIndex(index)}
+                                                        onMouseLeave={() => setHoveredBlockIndex(null)}
                                                         className="group/block relative -ml-16 pl-16 rounded-lg transition-colors"
                                                     >
                                                         {/* Hover "+" Button Between Blocks */}
@@ -769,43 +778,39 @@ export default function BrandCanvas({ isAdmin = false, brandData, basePath }) {
                                 )}
 
                                 {/* Navigation Footer */}
-                                <div className="mt-32 pt-12 border-t border-black/5">
-                                    <div className="grid grid-cols-2 gap-8">
-                                        {prevSection ? (
-                                            <button
-                                                onClick={() => {
-                                                    navigateToSection(prevSection)
-                                                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                                                }}
-                                                className="flex flex-col items-start gap-2 p-6 rounded-3xl bg-gray-50 hover:bg-black/5 hover:scale-[1.02] active:scale-[0.98] transition-all group text-left border border-transparent hover:border-black/5"
-                                            >
-                                                <div className="flex items-center gap-2 text-gray-400 group-hover:text-black transition-colors font-semibold text-xs tracking-wider uppercase">
-                                                    <ChevronLeft size={16} /> Previous
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-500 mb-1">{decodeEntities(prevSection?.group)}</p>
-                                                    <p className="text-lg font-bold text-gray-900 group-hover:text-black">{decodeEntities(prevSection?.title)}</p>
-                                                </div>
-                                            </button>
-                                        ) : <div></div>}
+                                <div className="mt-24 pt-8 border-t border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <button
+                                            onClick={() => {
+                                                navigateToSection(prevSection)
+                                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                                            }}
+                                            disabled={!prevSection}
+                                            className={`flex items-center gap-4 group ${!prevSection ? 'opacity-0 pointer-events-none' : ''}`}
+                                        >
+                                            <ChevronLeft size={24} className="text-gray-400 group-hover:text-gray-600" />
+                                            <div className="text-right">
+                                                <p className="text-sm font-medium text-gray-900">{decodeEntities(prevSection?.group)}</p>
+                                                <p className="text-sm text-gray-500">{decodeEntities(prevSection?.title)}</p>
+                                            </div>
+                                        </button>
 
-                                        {nextSection ? (
-                                            <button
-                                                onClick={() => {
-                                                    navigateToSection(nextSection)
-                                                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                                                }}
-                                                className="flex flex-col items-end gap-2 p-6 rounded-3xl bg-gray-50 hover:bg-black/5 hover:scale-[1.02] active:scale-[0.98] transition-all group text-right border border-transparent hover:border-black/5"
-                                            >
-                                                <div className="flex items-center gap-2 text-gray-400 group-hover:text-black transition-colors font-semibold text-xs tracking-wider uppercase">
-                                                    Next <ChevronRight size={16} />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-500 mb-1">{decodeEntities(nextSection?.group)}</p>
-                                                    <p className="text-lg font-bold text-gray-900 group-hover:text-black">{decodeEntities(nextSection?.title)}</p>
-                                                </div>
-                                            </button>
-                                        ) : <div></div>}
+                                        <div className="h-12 w-px bg-gray-200" />
+
+                                        <button
+                                            onClick={() => {
+                                                navigateToSection(nextSection)
+                                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                                            }}
+                                            disabled={!nextSection}
+                                            className={`flex items-center gap-4 group ${!nextSection ? 'opacity-0 pointer-events-none' : ''}`}
+                                        >
+                                            <div className="text-left">
+                                                <p className="text-sm font-medium text-gray-900">{decodeEntities(nextSection?.group)}</p>
+                                                <p className="text-sm text-gray-500">{decodeEntities(nextSection?.title)}</p>
+                                            </div>
+                                            <ChevronRight size={24} className="text-gray-400 group-hover:text-gray-600" />
+                                        </button>
                                     </div>
                                 </div>
                             </>
@@ -895,7 +900,6 @@ function DndBlockContent({
     isAdmin,
     index,
     block,
-    // eslint-disable-next-line no-unused-vars -- used as a JSX tag below; core no-unused-vars doesn't track that for params
     BlockComponent,
     confirmDeleteBlock,
     handleCopyBlock,
