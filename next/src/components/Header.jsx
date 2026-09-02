@@ -166,7 +166,7 @@ export default function Header({
 
                 {isAdmin && (
                     <button
-                        onClick={() => navigate('/admin')}
+                        onClick={() => navigate('/dashboard')}
                         className={`${iconBtnClass} mr-2`}
                         title="Back to Dashboard"
                     >

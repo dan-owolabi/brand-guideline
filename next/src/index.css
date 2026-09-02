@@ -1,41 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Zalando+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Zalando Sans", "Geist Sans", "Geist", "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
+  --radius-lg: 0.5rem;
+  --radius-md: calc(0.5rem - 2px);
+  --radius-sm: calc(0.5rem - 4px);
 
-  /* Premium neutral scale */
-  --color-background: #FAFAFA;
-  --color-foreground: #09090B; /* Zinc 950 */
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222.2 84% 4.9%);
 
-  --color-card: #FFFFFF;
-  --color-card-foreground: #09090B;
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222.2 84% 4.9%);
 
-  --color-popover: rgba(255, 255, 255, 0.85);
-  --color-popover-foreground: #09090B;
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222.2 84% 4.9%);
 
-  --color-primary: #09090B;
-  --color-primary-foreground: #FAFAFA;
+  --color-primary: hsl(222.2 47.4% 11.2%);
+  --color-primary-foreground: hsl(210 40% 98%);
 
-  --color-secondary: #F4F4F5; /* Zinc 100 */
-  --color-secondary-foreground: #09090B;
+  --color-secondary: hsl(210 40% 96.1%);
+  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
 
-  --color-muted: #F4F4F5;
-  --color-muted-foreground: #71717A; /* Zinc 500 */
+  --color-muted: hsl(210 40% 96.1%);
+  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
 
-  --color-accent: #F4F4F5;
-  --color-accent-foreground: #09090B;
+  --color-accent: hsl(210 40% 96.1%);
+  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
 
-  --color-destructive: #EF4444;
-  --color-destructive-foreground: #FAFAFA;
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(210 40% 98%);
 
-  --color-border: rgba(0, 0, 0, 0.08); /* Ultra subtle border */
-  --color-input: rgba(0, 0, 0, 0.1);
-  --color-ring: #09090B;
+  --color-border: hsl(214.3 31.8% 91.4%);
+  --color-input: hsl(214.3 31.8% 91.4%);
+  --color-ring: hsl(222.2 84% 4.9%);
 }
 
 /* Typography & Block System */
@@ -44,96 +42,29 @@
     --brand-primary: #000000;
     --brand-primary-light: #333333;
 
-    /* Transitions.dev Tokens */
-    --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --spring-stiff: cubic-bezier(0.17, 0.84, 0.44, 1);
-    --spring-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
-    --spring-float: cubic-bezier(0.22, 1, 0.36, 1);
-    
-    /* ── Motion tokens — shared scale ────────────────────────────── */
-    --duration-stagger: 40ms;
-    --duration-micro: 80ms;
-    --duration-quick: 150ms;
-    --duration-fast: 250ms;
-    --duration-medium: 350ms;
-    --duration-slow: 400ms;
-    --duration-very-slow: 500ms;
-    
-    --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
-    --ease-in-out: ease-in-out;
-    --ease-out: ease-out;
-    --ease-linear: linear;
-    --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
-    --ease-bounce-strong: cubic-bezier(0.34, 3.85, 0.64, 1);
-    
-    --distance-micro: 4px;
-    --distance-small: 6px;
-    --distance-base: 8px;
-    --distance-medium: 12px;
-    --distance-large: 30px;
-    
-    --scale-large: 0.96;
-    --scale-medium: 0.97;
-    --scale-small: 0.98;
-    --scale-tiny: 0.99;
-    
-    --blur-small: 2px;
-    --blur-medium: 3px;
-    --blur-large: 8px;
-
-    /* Component specific tokens */
-    --dropdown-open-dur: 250ms;
-    --dropdown-close-dur: 150ms;
-    --dropdown-pre-scale: 0.97;
-    --dropdown-closing-scale: 0.99;
-    --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    
-    --modal-open-dur: 250ms;
-    --modal-close-dur: 150ms;
-    --modal-scale: 0.96;
-    --modal-scale-close: 0.96;
-    --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    
-    --tabs-dur: 250ms;
-    --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --tabs-text-muted: rgba(15, 15, 15, 0.8);
-    --tabs-text-active: #0f0f0f;
-    --tabs-bar-bg: transparent;
-    --tabs-pill-bg: #ffffff;
-    
-    --tilt-perspective: 1000px;
-    --tilt-return: 1000ms;
-    --tilt-return-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --tilt-follow: 400ms;
-    --tilt-follow-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --tilt-glare-opacity: 0.32;
-    --tilt-glare-fade: 300ms;
-    --tilt-glare-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    /* Base Typography Specs */
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
   }
 
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    scroll-behavior: smooth;
-    background-color: var(--color-background);
-  }
-
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    letter-spacing: -0.015em;
   }
 
   /* Body Text (Paragraph) */
   .prose-paragraph {
     font-size: 16px;
-    line-height: 1.7;
+    line-height: 1.625;
+    /* 26px */
     font-weight: 400;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
     max-width: 680px;
-    margin-bottom: 24px;
-    color: #52525B; /* Zinc 600 */
-    text-wrap: pretty;
+    margin-bottom: 20px;
+    color: #4B5563;
+    /* gray-600 - softer than 700 */
   }
 
   /* Small Text */
@@ -141,53 +72,55 @@
     font-size: 14px;
     line-height: 1.5;
     font-weight: 400;
-    color: #A1A1AA; /* Zinc 400 */
+    color: #6B7280;
+    /* gray-500 */
     margin-top: 8px;
   }
 
   /* Headings */
   .prose-h1 {
-    font-size: 44px;
+    font-size: 40px;
     line-height: 1.1;
-    font-weight: 600;
-    letter-spacing: -0.03em; /* Tighter tracking */
+    /* Tighter line height for headings */
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    /* Tighter tracking */
     margin-bottom: 24px;
-    color: #09090B;
-    text-wrap: balance;
+    color: #111827;
+    /* gray-900 */
   }
 
   .prose-h2 {
-    font-size: 32px;
-    line-height: 1.2;
+    font-size: 28px;
+    line-height: 1.25;
     font-weight: 600;
-    letter-spacing: -0.025em;
-    margin-top: 56px;
-    margin-bottom: 20px;
-    color: #09090B;
-    text-wrap: balance;
+    letter-spacing: -0.02em;
+    margin-top: 48px;
+    margin-bottom: 16px;
+    color: #111827;
   }
 
   .prose-h3 {
-    font-size: 22px;
-    line-height: 1.3;
+    font-size: 20px;
+    line-height: 1.4;
     font-weight: 600;
     letter-spacing: -0.015em;
-    margin-top: 40px;
-    margin-bottom: 16px;
-    color: #18181B; /* Zinc 900 */
+    margin-top: 32px;
+    margin-bottom: 12px;
+    color: #111827;
   }
 
   .prose-h4 {
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1.5;
     font-weight: 600;
     letter-spacing: -0.01em;
-    margin-top: 32px;
-    margin-bottom: 12px;
-    color: #27272A; /* Zinc 800 */
+    margin-top: 24px;
+    margin-bottom: 8px;
+    color: #111827;
   }
 
-  /* Tight spacing */
+  /* Tight spacing - removes top margin when blocks should be grouped */
   .block-tight {
     margin-top: 0 !important;
     padding-top: 0 !important;
@@ -195,61 +128,44 @@
 
   /* Quote */
   .prose-quote {
-    font-size: 19px;
-    line-height: 1.6;
-    font-weight: 400;
-    font-style: italic;
-    padding: 32px;
-    border-radius: 16px;
-    border-left: 0;
-    background-color: #FFFFFF;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.02);
-    margin: 32px 0;
-    color: #3F3F46; /* Zinc 700 */
-    position: relative;
-  }
-  
-  .prose-quote::before {
-    content: '"';
-    position: absolute;
-    top: -10px;
-    left: -10px;
-    font-size: 64px;
-    color: rgba(0,0,0,0.05);
-    font-family: serif;
-    line-height: 1;
+    font-size: 18px;
+    line-height: 28px;
+    font-weight: 500;
+    padding: 24px;
+    border-radius: 12px;
+    border-left: 4px solid var(--brand-primary);
+    background-color: #F9FAFB;
+    /* gray-50 */
+    margin: 24px 0;
+    color: #374151;
   }
 
   .prose-quote-attribution {
     font-size: 14px;
-    font-style: normal;
-    font-weight: 500;
-    opacity: 0.8;
-    margin-top: 16px;
+    opacity: 0.7;
+    margin-top: 12px;
     display: block;
-    color: #71717A;
   }
 
   /* Lists */
   .prose-list {
     font-size: 16px;
-    line-height: 1.7;
-    margin-bottom: 24px;
-    padding-left: 24px;
-    color: #52525B;
+    line-height: 26px;
+    margin-bottom: 16px;
+    padding-left: 20px;
   }
 
   .prose-list-item {
     margin-bottom: 8px;
   }
 
-  /* ContentEditable lists */
+  /* Lists created by contentEditable execCommand */
   [contenteditable="true"] ul,
   .prose-paragraph ul,
   .prose-list-item ul {
     list-style-type: disc;
     padding-left: 1.5rem;
-    margin: 0.75rem 0;
+    margin: 0.5rem 0;
   }
 
   [contenteditable="true"] ol,
@@ -257,22 +173,35 @@
   .prose-list-item ol {
     list-style-type: decimal;
     padding-left: 1.5rem;
-    margin: 0.75rem 0;
+    margin: 0.5rem 0;
   }
 
   [contenteditable="true"] ul li,
   [contenteditable="true"] ol li,
   .prose-paragraph ul li,
   .prose-paragraph ol li {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Nested lists */
+  [contenteditable="true"] ul ul,
+  .prose-paragraph ul ul {
+    list-style-type: circle;
+  }
+
+  [contenteditable="true"] ul ul ul,
+  .prose-paragraph ul ul ul {
+    list-style-type: square;
   }
 
   .numbered-list-container {
     counter-reset: block-counter;
   }
+
   .prose-numbered-item {
     counter-increment: block-counter;
   }
+
   .prose-numbered-item-label::before {
     content: counter(block-counter) ". ";
   }
@@ -281,82 +210,129 @@
   .prose-divider {
     height: 1px;
     width: 100%;
-    background-color: rgba(0,0,0,0.06);
-    margin: 48px 0;
+    background-color: #E5E7EB;
+    /* gray-200 */
+    margin: 32px 0;
   }
 
   /* Mobile Adjustments */
   @media (max-width: 768px) {
     .prose-paragraph {
       font-size: 15px;
-      line-height: 1.6;
+      line-height: 24px;
     }
-    .prose-h1 {
-      font-size: 36px;
-    }
-    .prose-h2 {
-      font-size: 26px;
-    }
-    .prose-h3 {
-      font-size: 20px;
-    }
-    .prose-quote {
-      font-size: 17px;
-      padding: 24px;
-    }
-  }
-}
 
-/* Utilities */
-@layer utilities {
-  .shadow-soft {
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-  }
-  .shadow-float {
-    box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
-  }
-  .glass {
-    @apply bg-white/70 backdrop-blur-2xl border border-black/[0.04];
-  }
-  .glass-dark {
-    @apply bg-black/70 backdrop-blur-2xl border border-white/[0.08];
+    .prose-h1 {
+      font-size: 32px;
+      line-height: 40px;
+    }
+
+    .prose-h2 {
+      font-size: 24px;
+      line-height: 32px;
+    }
+
+    .prose-h3 {
+      font-size: 18px;
+      line-height: 26px;
+    }
+
+    .prose-quote {
+      font-size: 16px;
+      padding: 16px;
+    }
+
+    /* Reduce margins by 25% */
+    .prose-h1,
+    .prose-h2,
+    .prose-h3,
+    .prose-h4,
+    .prose-quote,
+    .prose-divider {
+      margin-top: calc(0.75 * initial);
+      margin-bottom: calc(0.75 * initial);
+    }
   }
 }
 
 /* Edit Mode Visuals */
 .block-hover-outline:hover {
-  outline: 1px dashed rgba(0,0,0,0.15);
-  border-radius: 4px;
+  outline: 1px dashed #D1D5DB;
+  /* gray-300 */
 }
+
 .block-active-bg {
-  background-color: rgba(0, 0, 0, 0.03);
-  border-radius: 8px;
+  background-color: rgba(243, 244, 246, 0.5);
+  /* gray-100 50% */
 }
 
 /* Section system */
 .sidebar-item-active {
-  @apply text-black font-medium;
+  @apply text-gray-900 font-medium;
 }
+
 .sidebar-item-nested {
   @apply pl-4 text-xs;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  @apply bg-black/10 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-black/20;
+  @apply bg-gray-200 rounded-full;
 }
 
-/* Transitions.dev Component Classes */
-/* t-modal */
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-300;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Animation system for AnimatedModal / AnimatedDropdown / TiltCard /
+   AnimatedTabs.
+
+   Kept when the rest of this stylesheet was reverted to the production
+   design. Production predates these components entirely, so dropping
+   these rules would leave the modal and dropdown unstyled and, worse,
+   show the tilt-card glare permanently — its opacity: 0 lives here.
+   Purely additive: no palette, type or radius tokens.
+   ────────────────────────────────────────────────────────────── */
+:root {
+    --dropdown-open-dur: 250ms;
+    --dropdown-close-dur: 150ms;
+    --dropdown-pre-scale: 0.97;
+    --dropdown-closing-scale: 0.99;
+    --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --modal-open-dur: 250ms;
+    --modal-close-dur: 150ms;
+    --modal-scale: 0.96;
+    --modal-scale-close: 0.96;
+    --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --tabs-dur: 250ms;
+    --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --tabs-text-muted: rgba(15, 15, 15, 0.8);
+    --tabs-text-active: #0f0f0f;
+    --tabs-bar-bg: transparent;
+    --tabs-pill-bg: #ffffff;
+    --tilt-perspective: 1000px;
+    --tilt-return: 1000ms;
+    --tilt-return-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --tilt-follow: 400ms;
+    --tilt-follow-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --tilt-glare-opacity: 0.32;
+    --tilt-glare-fade: 300ms;
+    --tilt-glare-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .t-modal {
   transform-origin: center;
   transform: scale(var(--modal-scale));
